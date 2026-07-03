@@ -1058,7 +1058,7 @@ function actionLabel(action) {
     subscription_renew: "تجديد اشتراك",
     subscription_trial_grant: "منح مدة مجانية بعد التوثيق",
     subscription_extend: "تمديد اشتراك",
-    subscription_open: "اشتراك مفتوح",
+    subscription_free: "اشتراك مجاني",
     subscription_stop: "إيقاف اشتراك",
     update_user: "تعديل بيانات مستخدم",
     delete_user: "حذف مستخدم",
@@ -1101,7 +1101,7 @@ function logDetailsText(log) {
     return `${d.name || "مستخدم"} - ${d.phone || "-"}`;
   }
 
-  if (["subscription_update", "subscription_manual_update", "subscription_renew", "subscription_trial_grant", "subscription_extend", "subscription_open", "subscription_stop"].includes(log.action)) {
+  if (["subscription_update", "subscription_manual_update", "subscription_renew", "subscription_trial_grant", "subscription_extend", "subscription_free", "subscription_stop"].includes(log.action)) {
     return `${d.name || d.targetUserName || "مستخدم"} - ${subscriptionStatusLabel(d.status || d.newStatus)} - ينتهي: ${d.endDate || "-"}`;
   }
 
@@ -2524,7 +2524,7 @@ function isUserSubscriptionActive(user) {
 
 function subscriptionRemainingDays(user) {
   const status = user.subscriptionStatus || "free";
-  if (status === "free") return "مفتوح";
+  if (status === "free") return "مجاني";
 
   const end = toJsDate(user.subscriptionEndDate);
   if (!end) return "-";
@@ -2715,22 +2715,22 @@ async function quickExtendSubscription(docId, user, days, status = "active", pla
 }
 
 
-async function makeSubscriptionOpen(docId) {
+async function makeSubscriptionFree(docId) {
   const user = allUsersCache.find((u) => u.docId === docId) || {};
 
-  if (!confirm("تفعيل اشتراك مفتوح لهذا المستخدم؟\n\nهذا الاشتراك لا يملك تاريخ انتهاء، وسيبقى فعالاً حتى توقفه أنت من الإدارة.")) {
+  if (!confirm("تفعيل مجاني لهذا المستخدم؟\n\nهذا الاشتراك مجاني ولا يملك تاريخ انتهاء، وسيبقى فعالاً حتى توقفه أنت من الإدارة.")) {
     return;
   }
 
   const payload = {
     subscriptionStatus: "active",
-    subscriptionPlanName: "اشتراك مفتوح",
+    subscriptionPlanName: "مجاني",
     subscriptionStartDate: new Date(),
     subscriptionEndDate: null,
     subscriptionAmount: 0,
     subscriptionCurrency: "TRY",
-    subscriptionPaymentMethod: "open",
-    subscriptionNote: "اشتراك مفتوح بدون تاريخ انتهاء",
+    subscriptionPaymentMethod: "free",
+    subscriptionNote: "مجاني بدون تاريخ انتهاء",
     isSubscriptionActive: true,
     subscriptionUpdatedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -2738,9 +2738,9 @@ async function makeSubscriptionOpen(docId) {
 
   await setDoc(doc(db, "users", docId), payload, { merge: true });
 
-  await writeSubscriptionHistory(docId, user, payload, "subscription_open");
+  await writeSubscriptionHistory(docId, user, payload, "subscription_free");
 
-  await addAdminLog("subscription_open", {
+  await addAdminLog("subscription_free", {
     docId,
     targetUserId: docId,
     targetUserName: user.name || "",
@@ -2751,16 +2751,16 @@ async function makeSubscriptionOpen(docId) {
     role: user.role || "",
     status: "active",
     newStatus: "active",
-    plan: "اشتراك مفتوح",
-    endDate: "مفتوح",
+    plan: "مجاني",
+    endDate: "مجاني",
   });
 
   closeModal?.();
-  toast("تم تفعيل اشتراك مفتوح");
+  toast("تم تفعيل مجاني");
   renderSubscriptions?.();
 }
 
-window.makeSubscriptionOpen = makeSubscriptionOpen;
+window.makeSubscriptionFree = makeSubscriptionFree;
 
 
 async function stopSubscription(docId, user) {
@@ -3033,7 +3033,7 @@ function ensureAdminNotificationsSection() {
         <div class="dashboard-hero-actions windows-notifications-actions">
           <button class="windows-notifications-btn" id="enableWindowsNotificationsBtn">تفعيل إشعارات ويندوز</button>
           <button class="primary-btn" id="refreshAdminNotificationsBtn">تحديث التنبيهات</button>
-          <small id="windowsNotificationsStatus">تعمل إذا صفحة الإدارة مفتوحة أو بالخلفية</small>
+          <small id="windowsNotificationsStatus">تعمل إذا صفحة الإدارة مجانية أو بالخلفية</small>
         </div>
       </div>
 
@@ -3150,7 +3150,7 @@ function updateWindowsNotificationsButton() {
   }
 
   btn.textContent = "تفعيل إشعارات ويندوز";
-  if (status) status.textContent = "تعمل إذا صفحة الإدارة مفتوحة أو بالخلفية";
+  if (status) status.textContent = "تعمل إذا صفحة الإدارة مجانية أو بالخلفية";
 }
 
 async function requestWindowsNotificationsPermission() {
@@ -3668,6 +3668,8 @@ function buildSubscriptionCard(user) {
   const card = document.createElement("div");
   const statusClass = subscriptionStatusClass(user);
   card.className = `data-card subscription-center-card ${statusClass}`;
+  card.dataset.userId = user.docId || user.uid || "";
+  card.dataset.id = user.docId || user.uid || "";
 
   card.innerHTML = `
     <div class="card-top">
@@ -5601,7 +5603,8 @@ window.seedDefaultAppConfig = async function () {
 
 
 
-function ensureOpenSubscriptionButtons() {
+function ensureFreeSubscriptionButtons() {
+  return;
   const modal = document.querySelector(".admin-modal, .modal-content, .details-modal-content, .manage-modal-content");
   if (!modal) return;
 
@@ -5611,7 +5614,7 @@ function ensureOpenSubscriptionButtons() {
 
   // نضيف الزر داخل أي مودال إدارة مستخدم/اشتراك إذا كان فيه أزرار اشتراك
   const actions = Array.from(modal.querySelectorAll(".modal-actions, .subscription-actions, .subscription-modal-actions, .manual-subscription-actions, .subscription-center-actions"))
-    .find((box) => !box.querySelector(".open-subscription-btn"));
+    .find((box) => !box.querySelector(".free-subscription-btn"));
 
   if (!actions) return;
 
@@ -5620,8 +5623,8 @@ function ensureOpenSubscriptionButtons() {
 
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "open-subscription-btn success-btn";
-  btn.textContent = "اشتراك مفتوح";
+  btn.className = "free-subscription-btn success-btn";
+  btn.textContent = "مجاني";
   btn.title = "تفعيل اشتراك بدون تاريخ انتهاء";
 
   btn.addEventListener("click", () => {
@@ -5632,22 +5635,23 @@ function ensureOpenSubscriptionButtons() {
       window.currentSubscriptionUserId ||
       "";
     if (!id) {
-      alert("لم أتمكن من تحديد المستخدم. افتح الاشتراك من بطاقة المستخدم ثم جرّب مجدداً.");
+      alert("لم أتمكن من تحديد المستخدم. حدّث الصفحة Ctrl + F5 ثم جرّب من صفحة الاشتراكات.");
       return;
     }
-    makeSubscriptionOpen(id);
+    makeSubscriptionFree(id);
   });
 
   actions.prepend(btn);
 }
 
-setInterval(ensureOpenSubscriptionButtons, 900);
+setInterval(ensureFreeSubscriptionButtons, 900);
 
 
 
-function ensureOpenSubscriptionCardButtons() {
+function ensureFreeSubscriptionCardButtons() {
+  return;
   document.querySelectorAll("#subscriptionsSection .subscription-card, #subscriptionsSection .subscription-center-card, #subscriptionsSection .user-card").forEach((card) => {
-    if (card.querySelector(".open-subscription-card-btn")) return;
+    if (card.querySelector(".free-subscription-card-btn")) return;
 
     const text = card.textContent || "";
     if (!/اشتراك|subscription|مشترك|منتهي|تجريبي|موقوف/.test(text)) return;
@@ -5663,9 +5667,9 @@ function ensureOpenSubscriptionCardButtons() {
 
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "open-subscription-card-btn success-btn";
-    btn.textContent = "مفتوح";
-    btn.title = "تفعيل اشتراك مفتوح";
+    btn.className = "free-subscription-card-btn success-btn";
+    btn.textContent = "مجاني";
+    btn.title = "تفعيل مجاني";
 
     btn.addEventListener("click", () => {
       const finalUserId =
@@ -5674,15 +5678,221 @@ function ensureOpenSubscriptionCardButtons() {
         card.querySelector("[data-user-id]")?.dataset.userId ||
         "";
       if (!finalUserId) {
-        alert("لم أتمكن من تحديد المستخدم من هذه البطاقة. افتح إدارة الاشتراك ثم استخدم زر اشتراك مفتوح.");
+        alert("لم أتمكن من تحديد المستخدم. حدّث الصفحة Ctrl + F5 ثم جرّب من صفحة الاشتراكات.");
         return;
       }
-      makeSubscriptionOpen(finalUserId);
+      makeSubscriptionFree(finalUserId);
     });
 
     actions.appendChild(btn);
   });
 }
 
-setInterval(ensureOpenSubscriptionCardButtons, 1200);
+setInterval(ensureFreeSubscriptionCardButtons, 1200);
 
+
+
+function ensureSubscriptionActionsDropdowns() {
+  document.querySelectorAll("#subscriptionsSection .subscription-actions, #subscriptionsSection .card-actions, #subscriptionsSection .actions, .subscription-actions").forEach((actions) => {
+    if (actions.dataset.dropdownReady === "true") return;
+
+    const buttons = Array.from(actions.querySelectorAll("button"))
+      .filter((btn) => !btn.classList.contains("subscription-actions-more") && !btn.closest(".subscription-actions-dropdown"));
+
+    if (buttons.length < 4) return;
+
+    actions.dataset.dropdownReady = "true";
+    actions.classList.add("subscription-actions-compact");
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "subscription-actions-dropdown";
+
+    const mainButton = document.createElement("button");
+    mainButton.type = "button";
+    mainButton.className = "subscription-actions-more primary-btn";
+    mainButton.textContent = "إجراءات الاشتراك";
+    mainButton.title = "عرض إجراءات الاشتراك";
+
+    const menu = document.createElement("div");
+    menu.className = "subscription-actions-menu hidden";
+
+    wrapper.appendChild(mainButton);
+    wrapper.appendChild(menu);
+
+    // نخلي أول زرين ظاهرين، والباقي داخل القائمة
+    const visibleButtons = buttons.slice(0, 2);
+    const menuButtons = buttons.slice(2);
+
+    menuButtons.forEach((btn) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = btn.className || "light-btn";
+      item.textContent = btn.textContent || btn.title || "إجراء";
+      item.title = btn.title || item.textContent;
+      item.addEventListener("click", (event) => {
+        event.preventDefault();
+        menu.classList.add("hidden");
+        btn.click();
+      });
+      menu.appendChild(item);
+      btn.classList.add("subscription-hidden-original-action");
+      btn.style.display = "none";
+    });
+
+    actions.appendChild(wrapper);
+
+    mainButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      document.querySelectorAll(".subscription-actions-menu").forEach((other) => {
+        if (other !== menu) other.classList.add("hidden");
+      });
+      menu.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", () => {
+      menu.classList.add("hidden");
+    });
+  });
+}
+
+setInterval(ensureSubscriptionActionsDropdowns, 900);
+
+
+
+/* ===== Real subscription actions select dropdown ===== */
+function getUserIdFromSubscriptionBox(box) {
+  const card = box.closest(".subscription-card, .subscription-center-card, .user-card, [data-user-id], [data-id]");
+  const modal = box.closest(".admin-modal, .modal-content, .details-modal-content, .manage-modal-content");
+
+  return (
+    card?.dataset.userId ||
+    card?.dataset.id ||
+    card?.querySelector("[data-user-id]")?.dataset.userId ||
+    modal?.dataset.userId ||
+    modal?.querySelector("[data-user-id]")?.dataset.userId ||
+    window.currentManageUserId ||
+    window.currentSubscriptionUserId ||
+    ""
+  );
+}
+
+function collectSubscriptionActionButtons(box) {
+  return Array.from(box.querySelectorAll(":scope > button, :scope > .subscription-actions-dropdown button, :scope > div > button"))
+    .filter((btn) => {
+      if (btn.classList.contains("subscription-real-action-run")) return false;
+      if (btn.classList.contains("subscription-actions-more")) return false;
+      if (btn.closest(".subscription-real-dropdown")) return false;
+      if (btn.classList.contains("free-subscription-btn") || btn.classList.contains("free-subscription-card-btn")) return false;
+      const text = (btn.textContent || "").trim();
+      if (!text) return false;
+      return !/تفاصيل|السجل|إغلاق|حفظ/i.test(text);
+    });
+}
+
+function buildSubscriptionActionOptions(box) {
+  const buttons = collectSubscriptionActionButtons(box);
+  const options = [];
+
+  buttons.forEach((btn, index) => {
+    let label = (btn.textContent || btn.title || "").trim().replace(/\s+/g, " ");
+    if (!label) return;
+
+    // توحيد التسمية
+    label = label.replace("اشتراك مجاني", "مجاني").replace("مجاني", "مجاني").replace("مجاني", "مجاني");
+
+    options.push({
+      id: `btn_${index}_${Math.random().toString(36).slice(2)}`,
+      label,
+      run: () => btn.click(),
+      source: btn,
+    });
+  });
+
+  const userId = getUserIdFromSubscriptionBox(box);
+
+  if (userId) {
+    options.push({
+      id: `free_${userId}`,
+      label: "مجاني",
+      run: () => makeSubscriptionFree(userId),
+      source: null,
+    });
+  }
+
+  return options;
+}
+
+function replaceSubscriptionActionsWithSelect() {
+  document.querySelectorAll(
+    "#subscriptionsSection .subscription-actions, #subscriptionsSection .card-actions, #subscriptionsSection .actions, .subscription-actions"
+  ).forEach((box) => {
+    const text = box.closest(".subscription-card, .subscription-center-card, .user-card, .admin-modal, .modal-content")?.textContent || box.textContent || "";
+    if (!/اشتراك|subscription|تجديد|تمديد|موقوف|منتهي|تجريبي|مشترك|مجاني/.test(text)) return;
+
+    if (box.dataset.realDropdownReady === "true") return;
+
+    const options = buildSubscriptionActionOptions(box);
+    if (options.length < 2) return;
+
+    box.dataset.realDropdownReady = "true";
+    box.classList.add("subscription-real-actions-box");
+
+    options.forEach((item) => {
+      if (item.source) {
+        item.source.classList.add("subscription-original-hidden");
+        item.source.style.display = "none";
+      }
+    });
+
+    box.querySelectorAll(".subscription-actions-dropdown, .subscription-real-dropdown").forEach((el) => el.remove());
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "subscription-real-dropdown subscription-visible-execute-dropdown";
+
+    const select = document.createElement("select");
+    select.className = "subscription-real-select";
+    select.innerHTML = `<option value="">اختر إجراء الاشتراك</option>`;
+
+    options.forEach((item, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = item.label;
+      select.appendChild(option);
+    });
+
+    const runBtn = document.createElement("button");
+    runBtn.type = "button";
+    runBtn.className = "subscription-real-action-run primary-btn";
+    runBtn.textContent = "تنفيذ";
+    runBtn.disabled = true;
+
+    select.addEventListener("change", () => {
+      runBtn.disabled = !select.value;
+    });
+
+    runBtn.addEventListener("click", () => {
+      const item = options[Number(select.value)];
+      if (!item) return;
+
+      const label = item.label || "الإجراء";
+      if (!confirm(`تنفيذ: ${label} ؟`)) return;
+
+      select.value = "";
+      runBtn.disabled = true;
+      item.run();
+
+      setTimeout(() => {
+        box.dataset.realDropdownReady = "";
+        const existing = box.querySelector(".subscription-real-dropdown");
+        if (existing) existing.remove();
+        replaceSubscriptionActionsWithSelect();
+      }, 700);
+    });
+
+    wrapper.appendChild(select);
+    wrapper.appendChild(runBtn);
+    box.appendChild(wrapper);
+  });
+}
+
+setInterval(replaceSubscriptionActionsWithSelect, 700);

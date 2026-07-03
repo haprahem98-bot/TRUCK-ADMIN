@@ -2563,16 +2563,195 @@
 
 
 /* ===== Open subscription button ===== */
-.open-subscription-btn,
-.open-subscription-card-btn{
+.free-subscription-btn,
+.free-subscription-card-btn{
   background:#16a34a !important;
   color:#fff !important;
   border:none !important;
   box-shadow:0 8px 18px rgba(22,163,74,.18) !important;
 }
 
-.open-subscription-btn:hover,
-.open-subscription-card-btn:hover{
+.free-subscription-btn:hover,
+.free-subscription-card-btn:hover{
   filter:brightness(.97);
   transform:translateY(-1px);
+}
+
+
+/* ===== Subscription actions dropdown cleanup ===== */
+.subscription-actions-compact{
+  position:relative;
+  align-items:center;
+}
+
+.subscription-actions-dropdown{
+  position:relative;
+  display:inline-flex;
+  width:auto;
+}
+
+.subscription-actions-more{
+  min-width:150px;
+}
+
+.subscription-actions-menu{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  z-index:1500;
+  min-width:210px;
+  padding:8px;
+  border-radius:16px;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  box-shadow:0 18px 40px rgba(15,23,42,.18);
+  display:grid;
+  grid-template-columns:1fr;
+  gap:7px;
+}
+
+.subscription-actions-menu.hidden{
+  display:none;
+}
+
+.subscription-actions-menu button{
+  width:100% !important;
+  justify-content:center;
+}
+
+.free-subscription-btn,
+.free-subscription-card-btn{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:none !important;
+  box-shadow:0 8px 18px rgba(22,163,74,.18) !important;
+}
+
+@media(max-width:760px){
+  .subscription-actions-dropdown{
+    width:100%;
+  }
+
+  .subscription-actions-more{
+    width:100% !important;
+  }
+
+  .subscription-actions-menu{
+    position:static;
+    margin-top:8px;
+    width:100%;
+    min-width:0;
+    box-shadow:0 10px 24px rgba(15,23,42,.12);
+  }
+
+  #subscriptionsSection .subscription-actions,
+  #subscriptionsSection .card-actions,
+  #subscriptionsSection .actions{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+  }
+}
+
+
+/* ===== Real select dropdown for subscription actions ===== */
+.subscription-original-hidden,
+.subscription-hidden-original-action,
+.subscription-actions-dropdown{
+  display:none !important;
+}
+
+.subscription-real-actions-box{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:8px !important;
+  width:100% !important;
+}
+
+.subscription-real-dropdown{
+  display:grid;
+  grid-template-columns:minmax(180px, 1fr) auto;
+  gap:8px;
+  width:100%;
+  align-items:center;
+}
+
+.subscription-real-select{
+  width:100%;
+  min-height:46px;
+  border-radius:14px;
+  border:1px solid #cbd5e1;
+  background:#fff;
+  padding:0 12px;
+  font-weight:800;
+  color:#0f172a;
+}
+
+.subscription-real-action-run{
+  min-width:92px;
+}
+
+.subscription-real-action-run:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+@media(max-width:760px){
+  .subscription-real-dropdown{
+    grid-template-columns:1fr;
+  }
+
+  .subscription-real-action-run{
+    width:100% !important;
+  }
+}
+
+
+/* ===== Subscription dropdown auto run fix ===== */
+.subscription-real-dropdown-auto{
+  grid-template-columns:1fr !important;
+}
+
+.subscription-real-action-run{
+  display:none !important;
+}
+
+.subscription-real-select{
+  min-height:48px !important;
+  width:100% !important;
+}
+
+
+/* ===== Force visible execute button for subscription dropdown ===== */
+.subscription-visible-execute-dropdown{
+  display:grid !important;
+  grid-template-columns:minmax(180px, 1fr) 110px !important;
+  gap:8px !important;
+  width:100% !important;
+  align-items:center !important;
+}
+
+.subscription-visible-execute-dropdown .subscription-real-select{
+  display:block !important;
+  width:100% !important;
+  min-height:48px !important;
+}
+
+.subscription-visible-execute-dropdown .subscription-real-action-run{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:100% !important;
+  min-height:48px !important;
+  opacity:1;
+}
+
+.subscription-visible-execute-dropdown .subscription-real-action-run:disabled{
+  opacity:.55 !important;
+  cursor:not-allowed !important;
+}
+
+@media(max-width:760px){
+  .subscription-visible-execute-dropdown{
+    grid-template-columns:1fr !important;
+  }
 }
