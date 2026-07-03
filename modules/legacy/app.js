@@ -1058,6 +1058,7 @@ function actionLabel(action) {
     subscription_renew: "تجديد اشتراك",
     subscription_trial_grant: "منح مدة مجانية بعد التوثيق",
     subscription_extend: "تمديد اشتراك",
+    subscription_open: "اشتراك مفتوح",
     subscription_stop: "إيقاف اشتراك",
     update_user: "تعديل بيانات مستخدم",
     delete_user: "حذف مستخدم",
@@ -1100,7 +1101,7 @@ function logDetailsText(log) {
     return `${d.name || "مستخدم"} - ${d.phone || "-"}`;
   }
 
-  if (["subscription_update", "subscription_manual_update", "subscription_renew", "subscription_trial_grant", "subscription_extend", "subscription_stop"].includes(log.action)) {
+  if (["subscription_update", "subscription_manual_update", "subscription_renew", "subscription_trial_grant", "subscription_extend", "subscription_open", "subscription_stop"].includes(log.action)) {
     return `${d.name || d.targetUserName || "مستخدم"} - ${subscriptionStatusLabel(d.status || d.newStatus)} - ينتهي: ${d.endDate || "-"}`;
   }
 
@@ -2712,6 +2713,55 @@ async function quickExtendSubscription(docId, user, days, status = "active", pla
   const months = Math.max(1, Math.round(Number(days || 30) / 30));
   return extendSubscription(docId, user, months, status, planName);
 }
+
+
+async function makeSubscriptionOpen(docId) {
+  const user = allUsersCache.find((u) => u.docId === docId) || {};
+
+  if (!confirm("تفعيل اشتراك مفتوح لهذا المستخدم؟\n\nهذا الاشتراك لا يملك تاريخ انتهاء، وسيبقى فعالاً حتى توقفه أنت من الإدارة.")) {
+    return;
+  }
+
+  const payload = {
+    subscriptionStatus: "active",
+    subscriptionPlanName: "اشتراك مفتوح",
+    subscriptionStartDate: new Date(),
+    subscriptionEndDate: null,
+    subscriptionAmount: 0,
+    subscriptionCurrency: "TRY",
+    subscriptionPaymentMethod: "open",
+    subscriptionNote: "اشتراك مفتوح بدون تاريخ انتهاء",
+    isSubscriptionActive: true,
+    subscriptionUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  await setDoc(doc(db, "users", docId), payload, { merge: true });
+
+  await writeSubscriptionHistory(docId, user, payload, "subscription_open");
+
+  await addAdminLog("subscription_open", {
+    docId,
+    targetUserId: docId,
+    targetUserName: user.name || "",
+    targetUserPhone: user.phone || "",
+    targetUserRole: user.role || "",
+    name: user.name || "",
+    phone: user.phone || "",
+    role: user.role || "",
+    status: "active",
+    newStatus: "active",
+    plan: "اشتراك مفتوح",
+    endDate: "مفتوح",
+  });
+
+  closeModal?.();
+  toast("تم تفعيل اشتراك مفتوح");
+  renderSubscriptions?.();
+}
+
+window.makeSubscriptionOpen = makeSubscriptionOpen;
+
 
 async function stopSubscription(docId, user) {
   if (!confirm("إيقاف اشتراك هذا المستخدم؟")) return;
@@ -4658,6 +4708,9 @@ async function showUserAdminLogsModal(user) {
 
 
 function showManageUserModal(docId, user) {
+
+  window.currentManageUserId = (typeof docId !== "undefined" ? docId : "") || (typeof user !== "undefined" ? user?.docId : "") || (typeof id !== "undefined" ? id : "") || (typeof userId !== "undefined" ? userId : "") || "";
+  window.currentSubscriptionUserId = window.currentManageUserId;
   closeModal();
   const modal = document.createElement("div");
   modal.id = "adminModal";
@@ -5545,4 +5598,91 @@ window.seedDefaultAppConfig = async function () {
   await batch.commit();
   toast("تمت إضافة القوائم الأساسية");
 };
+
+
+
+function ensureOpenSubscriptionButtons() {
+  const modal = document.querySelector(".admin-modal, .modal-content, .details-modal-content, .manage-modal-content");
+  if (!modal) return;
+
+  const hasUserIdSource =
+    modal.querySelector("[data-user-id]") ||
+    document.querySelector("[data-current-user-id]");
+
+  // نضيف الزر داخل أي مودال إدارة مستخدم/اشتراك إذا كان فيه أزرار اشتراك
+  const actions = Array.from(modal.querySelectorAll(".modal-actions, .subscription-actions, .subscription-modal-actions, .manual-subscription-actions, .subscription-center-actions"))
+    .find((box) => !box.querySelector(".open-subscription-btn"));
+
+  if (!actions) return;
+
+  const titleText = modal.textContent || "";
+  if (!/اشتراك|subscription|تجديد|تمديد|موقوف|منتهي|تجريبي|مشترك/.test(titleText)) return;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "open-subscription-btn success-btn";
+  btn.textContent = "اشتراك مفتوح";
+  btn.title = "تفعيل اشتراك بدون تاريخ انتهاء";
+
+  btn.addEventListener("click", () => {
+    const id =
+      modal.dataset.userId ||
+      modal.querySelector("[data-user-id]")?.dataset.userId ||
+      window.currentManageUserId ||
+      window.currentSubscriptionUserId ||
+      "";
+    if (!id) {
+      alert("لم أتمكن من تحديد المستخدم. افتح الاشتراك من بطاقة المستخدم ثم جرّب مجدداً.");
+      return;
+    }
+    makeSubscriptionOpen(id);
+  });
+
+  actions.prepend(btn);
+}
+
+setInterval(ensureOpenSubscriptionButtons, 900);
+
+
+
+function ensureOpenSubscriptionCardButtons() {
+  document.querySelectorAll("#subscriptionsSection .subscription-card, #subscriptionsSection .subscription-center-card, #subscriptionsSection .user-card").forEach((card) => {
+    if (card.querySelector(".open-subscription-card-btn")) return;
+
+    const text = card.textContent || "";
+    if (!/اشتراك|subscription|مشترك|منتهي|تجريبي|موقوف/.test(text)) return;
+
+    const actions = card.querySelector(".subscription-actions, .card-actions, .actions");
+    if (!actions) return;
+
+    const userId =
+      card.dataset.userId ||
+      card.dataset.id ||
+      card.querySelector("[data-user-id]")?.dataset.userId ||
+      "";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "open-subscription-card-btn success-btn";
+    btn.textContent = "مفتوح";
+    btn.title = "تفعيل اشتراك مفتوح";
+
+    btn.addEventListener("click", () => {
+      const finalUserId =
+        userId ||
+        card.dataset.userId ||
+        card.querySelector("[data-user-id]")?.dataset.userId ||
+        "";
+      if (!finalUserId) {
+        alert("لم أتمكن من تحديد المستخدم من هذه البطاقة. افتح إدارة الاشتراك ثم استخدم زر اشتراك مفتوح.");
+        return;
+      }
+      makeSubscriptionOpen(finalUserId);
+    });
+
+    actions.appendChild(btn);
+  });
+}
+
+setInterval(ensureOpenSubscriptionCardButtons, 1200);
 

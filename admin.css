@@ -2561,3 +2561,18 @@
   }
 }
 
+
+/* ===== Open subscription button ===== */
+.open-subscription-btn,
+.open-subscription-card-btn{
+  background:#16a34a !important;
+  color:#fff !important;
+  border:none !important;
+  box-shadow:0 8px 18px rgba(22,163,74,.18) !important;
+}
+
+.open-subscription-btn:hover,
+.open-subscription-card-btn:hover{
+  filter:brightness(.97);
+  transform:translateY(-1px);
+}
