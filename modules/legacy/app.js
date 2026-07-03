@@ -3352,34 +3352,51 @@ function renderAdminNotificationsStats(items = buildAdminNotifications()) {
   const box = $("adminNotificationsStats");
   if (!box) return;
 
+  const total = items.length;
+  const danger = items.filter((i) => i.level === "danger").length;
+  const warning = items.filter((i) => i.level === "warning").length;
+  const subscriptions = items.filter((i) => i.type === "subscription").length;
+  const users = items.filter((i) => i.type === "user").length;
+
+  box.className = "admin-notifications-stats-clean";
   box.innerHTML = `
-    ${buildMiniStat("كل التنبيهات", items.length)}
-    ${buildMiniStat("عاجلة", items.filter((i) => i.level === "danger").length)}
-    ${buildMiniStat("مهمة", items.filter((i) => i.level === "warning").length)}
-    ${buildMiniStat("اشتراكات", items.filter((i) => i.type === "subscription").length)}
-    ${buildMiniStat("توثيق", items.filter((i) => i.type === "user").length)}
+    <div class="admin-notification-stat-clean"><strong>${total}</strong><span>كل التنبيهات</span></div>
+    <div class="admin-notification-stat-clean danger"><strong>${danger}</strong><span>عاجلة</span></div>
+    <div class="admin-notification-stat-clean warning"><strong>${warning}</strong><span>مهمة</span></div>
+    <div class="admin-notification-stat-clean"><strong>${subscriptions}</strong><span>اشتراكات</span></div>
+    <div class="admin-notification-stat-clean"><strong>${users}</strong><span>توثيق</span></div>
   `;
 }
 
 function buildAdminNotificationCard(item) {
+  const levelText = notificationLevelText(item.level);
+  const typeText = notificationTypeText(item.type);
+  const dateText = formatDateTimeDisplay(item.date);
+  const actionText = item.actionText || "فتح";
+
   return `
-    <div class="admin-notification-card ${escapeHtml(item.level)}">
-      <div class="notification-icon">${escapeHtml(item.icon)}</div>
-      <div class="notification-main">
-        <div class="notification-title-row">
+    <article class="admin-notification-card-clean ${escapeHtml(item.level)}">
+      <div class="admin-notification-dot-clean ${escapeHtml(item.level)}"></div>
+
+      <div class="admin-notification-clean-head">
+        <div class="admin-notification-icon-clean">${escapeHtml(item.icon)}</div>
+        <div class="admin-notification-title-clean">
           <h3>${escapeHtml(item.title)}</h3>
-          <span class="notification-level ${escapeHtml(item.level)}">${escapeHtml(notificationLevelText(item.level))}</span>
-        </div>
-        <p>${escapeHtml(item.description)}</p>
-        <div class="notification-meta">
-          <span>${escapeHtml(notificationTypeText(item.type))}</span>
-          <span>${escapeHtml(formatDateTimeDisplay(item.date))}</span>
+          <span>${escapeHtml(levelText)}</span>
         </div>
       </div>
-      <div class="notification-actions">
-        <button class="ghost-btn" data-open-notification="true" data-kind="${escapeHtml(item.targetKind || "section")}" data-id="${escapeHtml(item.targetId || "")}" data-section="${escapeHtml(item.section || "home")}">${escapeHtml(item.actionText || "فتح")}</button>
+
+      <p class="admin-notification-desc-clean">${escapeHtml(item.description)}</p>
+
+      <div class="admin-notification-meta-clean">
+        <span>${escapeHtml(typeText)}</span>
+        <span>${escapeHtml(dateText)}</span>
       </div>
-    </div>
+
+      <button class="admin-notification-open-clean" data-open-notification="true" data-kind="${escapeHtml(item.targetKind || "section")}" data-id="${escapeHtml(item.targetId || "")}" data-section="${escapeHtml(item.section || "home")}">
+        ${escapeHtml(actionText)}
+      </button>
+    </article>
   `;
 }
 
