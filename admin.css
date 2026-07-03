@@ -3118,3 +3118,247 @@
     grid-template-columns:1fr;
   }
 }
+
+
+/* =========================================================
+   Notifications Mobile Professional Fix
+   ========================================================= */
+
+@media(max-width: 960px){
+  /* صفحة التنبيهات */
+  #notificationsSection,
+  .notifications-section{
+    width:100% !important;
+    max-width:100% !important;
+    overflow-x:hidden !important;
+  }
+
+  #notificationsSection .stats-grid,
+  #notificationsSection .mini-stats-grid,
+  #notificationsSection .notifications-stats,
+  .notifications-stats{
+    display:grid !important;
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+    gap:10px !important;
+    margin-bottom:12px !important;
+  }
+
+  #notificationsSection .stat-card,
+  #notificationsSection .mini-stat-card,
+  #notificationsSection .notification-stat-card,
+  .notifications-stats .stat-card{
+    min-height:auto !important;
+    padding:12px !important;
+    border-radius:18px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:flex-start !important;
+    justify-content:center !important;
+    gap:4px !important;
+  }
+
+  #notificationsSection .stat-card h3,
+  #notificationsSection .mini-stat-card h3,
+  #notificationsSection .notification-stat-card h3{
+    font-size:24px !important;
+    line-height:1.1 !important;
+    margin:0 !important;
+  }
+
+  #notificationsSection .stat-card p,
+  #notificationsSection .mini-stat-card p,
+  #notificationsSection .notification-stat-card p{
+    font-size:12px !important;
+    margin:0 !important;
+  }
+
+  /* فلتر التنبيهات */
+  #notificationsSection .filters-panel,
+  #notificationsSection .notifications-filters,
+  #notificationsSection .filter-card{
+    padding:14px !important;
+    border-radius:20px !important;
+    margin-bottom:12px !important;
+  }
+
+  #notificationsSection .filters-grid,
+  #notificationsSection .notifications-filter-grid{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+
+  #notificationsSection input,
+  #notificationsSection select{
+    min-height:48px !important;
+    border-radius:15px !important;
+    font-size:16px !important;
+  }
+
+  #notificationsSection .filter-actions,
+  #notificationsSection .filter-actions-box{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:8px !important;
+    width:100% !important;
+  }
+
+  #notificationsSection .filter-actions button,
+  #notificationsSection .filter-actions-box button{
+    width:100% !important;
+    min-height:46px !important;
+  }
+
+  /* قائمة التنبيهات */
+  #adminNotificationsList,
+  #notificationsList,
+  .admin-notifications-list,
+  .notifications-list{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:12px !important;
+    width:100% !important;
+    max-width:100% !important;
+  }
+
+  #notificationsSection .notification-card,
+  #notificationsSection .admin-notification-card,
+  #notificationsSection .data-card,
+  .admin-notification-card,
+  .notification-card{
+    position:relative !important;
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    padding:16px 16px 14px !important;
+    border-radius:22px !important;
+    background:#fff !important;
+    border:1px solid #dbeafe !important;
+    box-shadow:0 10px 26px rgba(15,23,42,.07) !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+    text-align:right !important;
+  }
+
+  #notificationsSection .notification-card *,
+  #notificationsSection .admin-notification-card *,
+  .admin-notification-card *,
+  .notification-card *{
+    max-width:100% !important;
+    min-width:0 !important;
+    overflow-wrap:anywhere !important;
+  }
+
+  /* النقطة الخضراء/الأهمية تكون داخل الكرت */
+  #notificationsSection .notification-dot,
+  #notificationsSection .notification-level-dot,
+  #notificationsSection .level-dot,
+  #notificationsSection .status-dot,
+  .admin-notification-card .notification-dot,
+  .admin-notification-card .level-dot,
+  .admin-notification-card .status-dot{
+    position:absolute !important;
+    top:16px !important;
+    right:14px !important;
+    width:16px !important;
+    height:16px !important;
+    min-width:16px !important;
+    min-height:16px !important;
+    border-radius:999px !important;
+    box-shadow:0 0 0 4px rgba(34,197,94,.14) !important;
+    margin:0 !important;
+  }
+
+  /* محتوى التنبيه */
+  #notificationsSection .notification-card h3,
+  #notificationsSection .admin-notification-card h3,
+  #notificationsSection .notification-title,
+  #notificationsSection .admin-notification-title{
+    font-size:18px !important;
+    line-height:1.45 !important;
+    margin:0 30px 8px 0 !important;
+    color:#0f172a !important;
+    font-weight:900 !important;
+  }
+
+  #notificationsSection .notification-card p,
+  #notificationsSection .admin-notification-card p,
+  #notificationsSection .notification-description,
+  #notificationsSection .admin-notification-description{
+    font-size:14px !important;
+    line-height:1.75 !important;
+    color:#334155 !important;
+    margin:0 30px 8px 0 !important;
+  }
+
+  #notificationsSection .notification-meta,
+  #notificationsSection .admin-notification-meta,
+  #notificationsSection .notification-details,
+  #notificationsSection .admin-notification-details{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:6px !important;
+    margin:8px 30px 0 0 !important;
+    color:#475569 !important;
+    font-size:13px !important;
+    line-height:1.7 !important;
+  }
+
+  #notificationsSection .notification-card small,
+  #notificationsSection .admin-notification-card small{
+    color:#64748b !important;
+    font-size:12px !important;
+    line-height:1.6 !important;
+  }
+
+  /* زر فتح الهدف */
+  #notificationsSection .notification-actions,
+  #notificationsSection .admin-notification-actions,
+  #notificationsSection .card-actions{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:8px !important;
+    margin-top:12px !important;
+    width:100% !important;
+  }
+
+  #notificationsSection .notification-actions button,
+  #notificationsSection .admin-notification-actions button,
+  #notificationsSection .card-actions button,
+  #notificationsSection .open-target-btn{
+    width:100% !important;
+    min-height:46px !important;
+    border-radius:15px !important;
+    justify-content:center !important;
+    font-weight:900 !important;
+  }
+
+  /* نص عرض النتائج */
+  #notificationsSection .results-count,
+  #notificationsSection .notifications-count,
+  #notificationsSection .list-count{
+    display:block !important;
+    margin:8px 4px 10px !important;
+    font-size:13px !important;
+    color:#475569 !important;
+    font-weight:800 !important;
+    text-align:right !important;
+  }
+}
+
+@media(max-width:520px){
+  #notificationsSection .stats-grid,
+  #notificationsSection .mini-stats-grid,
+  #notificationsSection .notifications-stats,
+  .notifications-stats{
+    grid-template-columns:1fr 1fr !important;
+  }
+
+  #notificationsSection .notification-card,
+  #notificationsSection .admin-notification-card,
+  #notificationsSection .data-card,
+  .admin-notification-card,
+  .notification-card{
+    padding:15px 14px 13px !important;
+  }
+}
