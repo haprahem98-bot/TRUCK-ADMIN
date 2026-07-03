@@ -6180,3 +6180,83 @@ function forceNotificationsMobileLayout() {
 }
 
 setInterval(forceNotificationsMobileLayout, 500);
+
+
+/* =========================================================
+   Force Settings Mobile Layout
+   Fixes huge checkbox controls after settings page render.
+   ========================================================= */
+function forceSettingsMobileLayout() {
+  const section = document.getElementById("settingsSection");
+  if (!section || section.classList.contains("hidden")) return;
+
+  section.classList.add("settings-mobile-forced");
+
+  // Force all checkboxes/radios to normal mobile size using inline important styles
+  section.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach((input) => {
+    input.classList.add("settings-checkbox-forced");
+    input.style.setProperty("width", "24px", "important");
+    input.style.setProperty("height", "24px", "important");
+    input.style.setProperty("min-width", "24px", "important");
+    input.style.setProperty("min-height", "24px", "important");
+    input.style.setProperty("max-width", "24px", "important");
+    input.style.setProperty("max-height", "24px", "important");
+    input.style.setProperty("flex", "0 0 24px", "important");
+    input.style.setProperty("margin", "0", "important");
+    input.style.setProperty("padding", "0", "important");
+    input.style.setProperty("transform", "none", "important");
+    input.style.setProperty("box-shadow", "none", "important");
+
+    const row =
+      input.closest("label") ||
+      input.closest(".setting-toggle") ||
+      input.closest(".toggle-row") ||
+      input.closest(".checkbox-row") ||
+      input.parentElement;
+
+    if (row) {
+      row.classList.add("settings-toggle-row-forced");
+      row.style.setProperty("display", "grid", "important");
+      row.style.setProperty("grid-template-columns", "30px minmax(0, 1fr) 28px", "important");
+      row.style.setProperty("align-items", "center", "important");
+      row.style.setProperty("gap", "10px", "important");
+      row.style.setProperty("width", "100%", "important");
+      row.style.setProperty("max-width", "100%", "important");
+      row.style.setProperty("min-height", "56px", "important");
+      row.style.setProperty("padding", "12px", "important");
+      row.style.setProperty("border-radius", "18px", "important");
+      row.style.setProperty("background", "#f8fafc", "important");
+      row.style.setProperty("border", "1px solid #e2e8f0", "important");
+      row.style.setProperty("box-sizing", "border-box", "important");
+      row.style.setProperty("overflow", "hidden", "important");
+    }
+  });
+
+  // Compact textareas that became huge
+  section.querySelectorAll("textarea").forEach((textarea) => {
+    textarea.classList.add("settings-textarea-forced");
+    textarea.style.setProperty("width", "100%", "important");
+    textarea.style.setProperty("max-width", "100%", "important");
+    textarea.style.setProperty("min-height", "115px", "important");
+    textarea.style.setProperty("max-height", "170px", "important");
+    textarea.style.setProperty("box-sizing", "border-box", "important");
+    textarea.style.setProperty("resize", "vertical", "important");
+  });
+
+  // Force normal inputs
+  section.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), select').forEach((field) => {
+    field.classList.add("settings-field-forced");
+    field.style.setProperty("width", "100%", "important");
+    field.style.setProperty("max-width", "100%", "important");
+    field.style.setProperty("min-height", "48px", "important");
+    field.style.setProperty("box-sizing", "border-box", "important");
+  });
+
+  // Prevent left overflow from any help/text nodes
+  section.querySelectorAll("*").forEach((el) => {
+    el.style.setProperty("max-width", "100%", "important");
+    el.style.setProperty("box-sizing", "border-box", "important");
+  });
+}
+
+setInterval(forceSettingsMobileLayout, 500);
