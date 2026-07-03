@@ -5396,24 +5396,47 @@ function renderConfigList(containerId, items, collectionName) {
     return;
   }
 
+  const selectedId = box.dataset.selectedId || "";
+  const selectedItem = items.find((item) => item.docId === selectedId) || null;
+
   box.innerHTML = `
-    <div class="config-list-table">
-      ${items.map((item) => `
-        <div class="config-list-row ${item.active ? "" : "is-disabled"}">
-          <div class="config-row-main">
-            <strong>${escapeHtml(item.nameAr)}</strong>
-            <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+    <div class="config-select-card">
+      <label class="config-select-label">اختر عنصر من القائمة</label>
+      <select class="config-main-select" data-config-select="${containerId}">
+        <option value="">اختر...</option>
+        ${items.map((item) => `
+          <option value="${item.docId}" ${selectedId === item.docId ? "selected" : ""}>
+            ${escapeHtml(item.nameAr)} ${item.active ? "" : " - مخفي"}
+          </option>
+        `).join("")}
+      </select>
+
+      <div class="config-selected-actions ${selectedItem ? "" : "hidden"}">
+        ${selectedItem ? `
+          <div class="config-selected-summary ${selectedItem.active ? "" : "is-disabled"}">
+            <div>
+              <strong>${escapeHtml(selectedItem.nameAr)}</strong>
+              <small>ترتيب ${selectedItem.sortOrder || "-"} • ${selectedItem.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+            </div>
+            <span class="badge ${selectedItem.active ? "verified" : "blocked"}">${selectedItem.active ? "ظاهر" : "مخفي"}</span>
           </div>
-          <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
-          <div class="config-row-actions">
-            <button class="update-btn" onclick="renameConfigItem('${collectionName}','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
-            <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
-            <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${item.docId}')">حذف</button>
+          <div class="config-selected-buttons">
+            <button class="update-btn" onclick="renameConfigItem('${collectionName}','${selectedItem.docId}','${escapeHtml(selectedItem.nameAr)}')">تعديل الاسم</button>
+            <button class="${selectedItem.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${selectedItem.docId}',${!selectedItem.active})">${selectedItem.active ? "تعطيل" : "تفعيل"}</button>
+            <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${selectedItem.docId}')">حذف</button>
           </div>
-        </div>
-      `).join("")}
+        ` : ""}
+      </div>
     </div>
   `;
+
+  const select = box.querySelector(`[data-config-select="${containerId}"]`);
+  if (select) {
+    select.addEventListener("change", () => {
+      box.dataset.selectedId = select.value;
+      renderConfigList(containerId, items, collectionName);
+    });
+  }
 }
 
 function renderCitiesConfigList() {
@@ -5425,39 +5448,78 @@ function renderCitiesConfigList() {
     return;
   }
 
-  const grouped = citiesConfig.reduce((acc, item) => {
-    const key = item.governorateName || "بدون محافظة";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
+  const activeGovernorates = governoratesConfig.length ? governoratesConfig : [];
+  const selectedGovernorate =
+    box.dataset.selectedGovernorate ||
+    activeGovernorates[0]?.nameAr ||
+    citiesConfig[0]?.governorateName ||
+    "";
 
-  const governorateNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, "ar"));
+  const cityOptions = citiesConfig
+    .filter((item) => !selectedGovernorate || item.governorateName === selectedGovernorate)
+    .sort((a, b) => (a.nameAr || "").localeCompare(b.nameAr || "", "ar"));
 
-  box.innerHTML = governorateNames.map((governorateName) => `
-    <div class="config-city-group">
-      <div class="config-city-group-head">
-        <strong>${escapeHtml(governorateName)}</strong>
-        <span>${grouped[governorateName].length} مدينة</span>
-      </div>
-      <div class="config-list-table">
-        ${grouped[governorateName].map((item) => `
-          <div class="config-list-row ${item.active ? "" : "is-disabled"}">
-            <div class="config-row-main">
-              <strong>${escapeHtml(item.nameAr)}</strong>
-              <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
-            </div>
-            <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
-            <div class="config-row-actions">
-              <button class="update-btn" onclick="renameConfigItem('cities','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
-              <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
-              <button class="danger-btn" onclick="deleteConfigItem('cities','${item.docId}')">حذف</button>
-            </div>
-          </div>
+  const selectedCityId = box.dataset.selectedCityId || "";
+  const selectedCity = cityOptions.find((item) => item.docId === selectedCityId) || null;
+
+  box.innerHTML = `
+    <div class="config-select-card">
+      <label class="config-select-label">اختر المحافظة</label>
+      <select class="config-main-select" id="configCitiesGovernoratePicker">
+        ${Array.from(new Set([
+          ...activeGovernorates.map((g) => g.nameAr),
+          ...citiesConfig.map((c) => c.governorateName).filter(Boolean),
+        ])).map((name) => `
+          <option value="${escapeHtml(name)}" ${selectedGovernorate === name ? "selected" : ""}>${escapeHtml(name)}</option>
         `).join("")}
+      </select>
+
+      <label class="config-select-label">اختر المدينة</label>
+      <select class="config-main-select" id="configCitiesCityPicker">
+        <option value="">اختر...</option>
+        ${cityOptions.map((item) => `
+          <option value="${item.docId}" ${selectedCityId === item.docId ? "selected" : ""}>
+            ${escapeHtml(item.nameAr)} ${item.active ? "" : " - مخفي"}
+          </option>
+        `).join("")}
+      </select>
+
+      <div class="config-selected-actions ${selectedCity ? "" : "hidden"}">
+        ${selectedCity ? `
+          <div class="config-selected-summary ${selectedCity.active ? "" : "is-disabled"}">
+            <div>
+              <strong>${escapeHtml(selectedCity.nameAr)}</strong>
+              <small>${escapeHtml(selectedCity.governorateName || "بدون محافظة")} • ترتيب ${selectedCity.sortOrder || "-"} • ${selectedCity.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+            </div>
+            <span class="badge ${selectedCity.active ? "verified" : "blocked"}">${selectedCity.active ? "ظاهر" : "مخفي"}</span>
+          </div>
+          <div class="config-selected-buttons">
+            <button class="update-btn" onclick="renameConfigItem('cities','${selectedCity.docId}','${escapeHtml(selectedCity.nameAr)}')">تعديل الاسم</button>
+            <button class="${selectedCity.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${selectedCity.docId}',${!selectedCity.active})">${selectedCity.active ? "تعطيل" : "تفعيل"}</button>
+            <button class="danger-btn" onclick="deleteConfigItem('cities','${selectedCity.docId}')">حذف</button>
+          </div>
+        ` : ""}
       </div>
     </div>
-  `).join("");
+  `;
+
+  const govPicker = $("configCitiesGovernoratePicker");
+  const cityPicker = $("configCitiesCityPicker");
+
+  if (govPicker) {
+    govPicker.addEventListener("change", () => {
+      box.dataset.selectedGovernorate = govPicker.value;
+      box.dataset.selectedCityId = "";
+      renderCitiesConfigList();
+    });
+  }
+
+  if (cityPicker) {
+    cityPicker.addEventListener("change", () => {
+      box.dataset.selectedCityId = cityPicker.value;
+      renderCitiesConfigList();
+    });
+  }
 }
 
 function fillGovernorateSelect() {

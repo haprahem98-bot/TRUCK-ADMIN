@@ -348,16 +348,16 @@
 
         <div class="config-center-tabs" role="tablist" aria-label="إدارة القوائم">
           <button type="button" class="config-tab-btn active" data-config-tab="trucks" onclick="showConfigTab('trucks')">
-            🚚 الشاحنات <span id="configTruckCount">0</span>
+            🚚 الشاحنات
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="loads" onclick="showConfigTab('loads')">
-            📦 الحمولات <span id="configLoadCount">0</span>
+            📦 الحمولات
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="governorates" onclick="showConfigTab('governorates')">
-            🗺️ المحافظات <span id="configGovernorateCount">0</span>
+            🗺️ المحافظات
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="cities" onclick="showConfigTab('cities')">
-            🏙️ المدن <span id="configCityCount">0</span>
+            🏙️ المدن
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="coordinates" onclick="showConfigTab('coordinates')">
             📍 الإحداثيات
@@ -376,7 +376,7 @@
               <input id="newTruckTypeInput" placeholder="مثال: براد، ستارة، قلاب" />
               <button class="success-btn" onclick="addTruckTypeConfig()">إضافة</button>
             </div>
-            <div id="truckTypesConfigList" class="cards-list config-list-clean"></div>
+            <div id="truckTypesConfigList" class="config-dropdown-list"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="loads">
@@ -390,7 +390,7 @@
               <input id="newLoadTypeInput" placeholder="مثال: مواد غذائية، أثاث، أجهزة" />
               <button class="success-btn" onclick="addLoadTypeConfig()">إضافة</button>
             </div>
-            <div id="loadTypesConfigList" class="cards-list config-list-clean"></div>
+            <div id="loadTypesConfigList" class="config-dropdown-list"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="governorates">
@@ -404,7 +404,7 @@
               <input id="newGovernorateInput" placeholder="مثال: حلب، إسطنبول، غازي عنتاب" />
               <button class="success-btn" onclick="addGovernorateConfig()">إضافة</button>
             </div>
-            <div id="governoratesConfigList" class="cards-list config-list-clean"></div>
+            <div id="governoratesConfigList" class="config-dropdown-list"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="cities">
@@ -419,7 +419,7 @@
               <input id="newCityInput" placeholder="مثال: إسنيورت، الباب، المزة" />
               <button class="success-btn" onclick="addCityConfig()">إضافة</button>
             </div>
-            <div id="citiesConfigList" class="cards-list config-list-clean"></div>
+            <div id="citiesConfigList" class="config-dropdown-list"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel coordinates-own-panel" data-config-panel="coordinates">
