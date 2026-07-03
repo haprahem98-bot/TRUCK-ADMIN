@@ -3014,36 +3014,42 @@
 
 
 /* =========================================================
-   Config Center Dropdown Lists
-   Cleaner management: choose item, then show actions only
+   Forced Config Dropdown UI
    ========================================================= */
 
-.config-tab-btn span{
+#configTruckCount,
+#configLoadCount,
+#configGovernorateCount,
+#configCityCount{
   display:none !important;
 }
 
-.config-dropdown-list{
-  display:block;
-  margin-top:0;
+.force-config-dropdown-container{
+  display:block !important;
 }
 
-.config-select-card{
+.forced-config-original-card{
+  display:none !important;
+}
+
+.forced-config-dropdown-box{
   display:grid;
   gap:10px;
   padding:12px;
   border:1px solid #e2e8f0;
   background:#f8fafc;
   border-radius:18px;
+  width:100%;
+  box-sizing:border-box;
 }
 
-.config-select-label{
+.forced-config-label{
   color:#334155;
   font-size:13px;
   font-weight:900;
-  margin-bottom:-4px;
 }
 
-.config-main-select{
+.forced-config-select{
   width:100%;
   min-height:50px;
   border-radius:15px;
@@ -3053,19 +3059,10 @@
   font-size:15px;
   font-weight:900;
   padding:0 12px;
+  box-sizing:border-box;
 }
 
-.config-selected-actions{
-  display:grid;
-  gap:10px;
-  margin-top:4px;
-}
-
-.config-selected-actions.hidden{
-  display:none !important;
-}
-
-.config-selected-summary{
+.forced-config-summary{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -3076,48 +3073,48 @@
   border:1px solid #e2e8f0;
 }
 
-.config-selected-summary.is-disabled{
-  opacity:.75;
-  background:#f1f5f9;
+.forced-config-summary.hidden,
+.forced-config-actions.hidden{
+  display:none !important;
 }
 
-.config-selected-summary div{
-  min-width:0;
+.forced-config-summary div{
   display:flex;
   flex-direction:column;
   gap:3px;
+  min-width:0;
 }
 
-.config-selected-summary strong{
+.forced-config-summary strong{
   color:#0f172a;
   font-size:16px;
 }
 
-.config-selected-summary small{
+.forced-config-summary small{
   color:#64748b;
   font-size:12px;
   font-weight:800;
 }
 
-.config-selected-buttons{
+.forced-config-actions{
   display:grid;
   grid-template-columns:repeat(3, minmax(0, 1fr));
   gap:8px;
 }
 
-.config-selected-buttons button{
+.forced-config-actions button{
   width:100% !important;
   min-height:44px !important;
   border-radius:14px !important;
 }
 
 @media(max-width:760px){
-  .config-selected-summary{
+  .forced-config-summary{
     flex-direction:column;
     align-items:stretch;
   }
 
-  .config-selected-buttons{
+  .forced-config-actions{
     grid-template-columns:1fr;
   }
 }

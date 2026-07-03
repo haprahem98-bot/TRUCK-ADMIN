@@ -5396,47 +5396,24 @@ function renderConfigList(containerId, items, collectionName) {
     return;
   }
 
-  const selectedId = box.dataset.selectedId || "";
-  const selectedItem = items.find((item) => item.docId === selectedId) || null;
-
   box.innerHTML = `
-    <div class="config-select-card">
-      <label class="config-select-label">اختر عنصر من القائمة</label>
-      <select class="config-main-select" data-config-select="${containerId}">
-        <option value="">اختر...</option>
-        ${items.map((item) => `
-          <option value="${item.docId}" ${selectedId === item.docId ? "selected" : ""}>
-            ${escapeHtml(item.nameAr)} ${item.active ? "" : " - مخفي"}
-          </option>
-        `).join("")}
-      </select>
-
-      <div class="config-selected-actions ${selectedItem ? "" : "hidden"}">
-        ${selectedItem ? `
-          <div class="config-selected-summary ${selectedItem.active ? "" : "is-disabled"}">
-            <div>
-              <strong>${escapeHtml(selectedItem.nameAr)}</strong>
-              <small>ترتيب ${selectedItem.sortOrder || "-"} • ${selectedItem.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
-            </div>
-            <span class="badge ${selectedItem.active ? "verified" : "blocked"}">${selectedItem.active ? "ظاهر" : "مخفي"}</span>
+    <div class="config-list-table">
+      ${items.map((item) => `
+        <div class="config-list-row ${item.active ? "" : "is-disabled"}">
+          <div class="config-row-main">
+            <strong>${escapeHtml(item.nameAr)}</strong>
+            <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
           </div>
-          <div class="config-selected-buttons">
-            <button class="update-btn" onclick="renameConfigItem('${collectionName}','${selectedItem.docId}','${escapeHtml(selectedItem.nameAr)}')">تعديل الاسم</button>
-            <button class="${selectedItem.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${selectedItem.docId}',${!selectedItem.active})">${selectedItem.active ? "تعطيل" : "تفعيل"}</button>
-            <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${selectedItem.docId}')">حذف</button>
+          <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
+          <div class="config-row-actions">
+            <button class="update-btn" onclick="renameConfigItem('${collectionName}','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
+            <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
+            <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${item.docId}')">حذف</button>
           </div>
-        ` : ""}
-      </div>
+        </div>
+      `).join("")}
     </div>
   `;
-
-  const select = box.querySelector(`[data-config-select="${containerId}"]`);
-  if (select) {
-    select.addEventListener("change", () => {
-      box.dataset.selectedId = select.value;
-      renderConfigList(containerId, items, collectionName);
-    });
-  }
 }
 
 function renderCitiesConfigList() {
@@ -5448,78 +5425,39 @@ function renderCitiesConfigList() {
     return;
   }
 
-  const activeGovernorates = governoratesConfig.length ? governoratesConfig : [];
-  const selectedGovernorate =
-    box.dataset.selectedGovernorate ||
-    activeGovernorates[0]?.nameAr ||
-    citiesConfig[0]?.governorateName ||
-    "";
+  const grouped = citiesConfig.reduce((acc, item) => {
+    const key = item.governorateName || "بدون محافظة";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
 
-  const cityOptions = citiesConfig
-    .filter((item) => !selectedGovernorate || item.governorateName === selectedGovernorate)
-    .sort((a, b) => (a.nameAr || "").localeCompare(b.nameAr || "", "ar"));
+  const governorateNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, "ar"));
 
-  const selectedCityId = box.dataset.selectedCityId || "";
-  const selectedCity = cityOptions.find((item) => item.docId === selectedCityId) || null;
-
-  box.innerHTML = `
-    <div class="config-select-card">
-      <label class="config-select-label">اختر المحافظة</label>
-      <select class="config-main-select" id="configCitiesGovernoratePicker">
-        ${Array.from(new Set([
-          ...activeGovernorates.map((g) => g.nameAr),
-          ...citiesConfig.map((c) => c.governorateName).filter(Boolean),
-        ])).map((name) => `
-          <option value="${escapeHtml(name)}" ${selectedGovernorate === name ? "selected" : ""}>${escapeHtml(name)}</option>
-        `).join("")}
-      </select>
-
-      <label class="config-select-label">اختر المدينة</label>
-      <select class="config-main-select" id="configCitiesCityPicker">
-        <option value="">اختر...</option>
-        ${cityOptions.map((item) => `
-          <option value="${item.docId}" ${selectedCityId === item.docId ? "selected" : ""}>
-            ${escapeHtml(item.nameAr)} ${item.active ? "" : " - مخفي"}
-          </option>
-        `).join("")}
-      </select>
-
-      <div class="config-selected-actions ${selectedCity ? "" : "hidden"}">
-        ${selectedCity ? `
-          <div class="config-selected-summary ${selectedCity.active ? "" : "is-disabled"}">
-            <div>
-              <strong>${escapeHtml(selectedCity.nameAr)}</strong>
-              <small>${escapeHtml(selectedCity.governorateName || "بدون محافظة")} • ترتيب ${selectedCity.sortOrder || "-"} • ${selectedCity.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+  box.innerHTML = governorateNames.map((governorateName) => `
+    <div class="config-city-group">
+      <div class="config-city-group-head">
+        <strong>${escapeHtml(governorateName)}</strong>
+        <span>${grouped[governorateName].length} مدينة</span>
+      </div>
+      <div class="config-list-table">
+        ${grouped[governorateName].map((item) => `
+          <div class="config-list-row ${item.active ? "" : "is-disabled"}">
+            <div class="config-row-main">
+              <strong>${escapeHtml(item.nameAr)}</strong>
+              <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
             </div>
-            <span class="badge ${selectedCity.active ? "verified" : "blocked"}">${selectedCity.active ? "ظاهر" : "مخفي"}</span>
+            <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
+            <div class="config-row-actions">
+              <button class="update-btn" onclick="renameConfigItem('cities','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
+              <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
+              <button class="danger-btn" onclick="deleteConfigItem('cities','${item.docId}')">حذف</button>
+            </div>
           </div>
-          <div class="config-selected-buttons">
-            <button class="update-btn" onclick="renameConfigItem('cities','${selectedCity.docId}','${escapeHtml(selectedCity.nameAr)}')">تعديل الاسم</button>
-            <button class="${selectedCity.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${selectedCity.docId}',${!selectedCity.active})">${selectedCity.active ? "تعطيل" : "تفعيل"}</button>
-            <button class="danger-btn" onclick="deleteConfigItem('cities','${selectedCity.docId}')">حذف</button>
-          </div>
-        ` : ""}
+        `).join("")}
       </div>
     </div>
-  `;
-
-  const govPicker = $("configCitiesGovernoratePicker");
-  const cityPicker = $("configCitiesCityPicker");
-
-  if (govPicker) {
-    govPicker.addEventListener("change", () => {
-      box.dataset.selectedGovernorate = govPicker.value;
-      box.dataset.selectedCityId = "";
-      renderCitiesConfigList();
-    });
-  }
-
-  if (cityPicker) {
-    cityPicker.addEventListener("change", () => {
-      box.dataset.selectedCityId = cityPicker.value;
-      renderCitiesConfigList();
-    });
-  }
+  `).join("");
 }
 
 function fillGovernorateSelect() {
@@ -6008,3 +5946,147 @@ function replaceSubscriptionActionsWithSelect() {
 }
 
 setInterval(replaceSubscriptionActionsWithSelect, 700);
+
+
+/* =========================================================
+   Force Config Lists To Dropdowns
+   ========================================================= */
+function forceConfigCardsToDropdowns() {
+  const configs = [
+    { id: "truckTypesConfigList", title: "اختر نوع الشاحنة" },
+    { id: "loadTypesConfigList", title: "اختر نوع الحمولة" },
+    { id: "governoratesConfigList", title: "اختر المحافظة" },
+    { id: "citiesConfigList", title: "اختر المدينة / المنطقة" },
+  ];
+
+  configs.forEach((cfg) => {
+    const box = document.getElementById(cfg.id);
+    if (!box) return;
+
+    const cards = Array.from(box.children).filter((el) => {
+      const text = (el.textContent || "").trim();
+      return text && !el.classList.contains("forced-config-dropdown-box") && !el.classList.contains("empty-box");
+    });
+
+    if (!cards.length) return;
+
+    const oldCount = Number(box.dataset.forceDropdownCount || "0");
+    if (box.dataset.forceDropdownReady === "true" && oldCount === cards.length) return;
+
+    box.dataset.forceDropdownReady = "true";
+    box.dataset.forceDropdownCount = String(cards.length);
+    box.classList.add("force-config-dropdown-container");
+
+    const oldWrapper = box.querySelector(".forced-config-dropdown-box");
+    if (oldWrapper) oldWrapper.remove();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "forced-config-dropdown-box";
+
+    const label = document.createElement("label");
+    label.className = "forced-config-label";
+    label.textContent = cfg.title;
+
+    const select = document.createElement("select");
+    select.className = "forced-config-select";
+    select.innerHTML = `<option value="">اختر...</option>`;
+
+    const summary = document.createElement("div");
+    summary.className = "forced-config-summary hidden";
+
+    const actions = document.createElement("div");
+    actions.className = "forced-config-actions hidden";
+
+    cards.forEach((card, index) => {
+      card.classList.add("forced-config-original-card");
+      card.style.display = "none";
+
+      let name =
+        card.querySelector("strong")?.textContent?.trim() ||
+        card.querySelector("h3")?.textContent?.trim() ||
+        card.querySelector("h4")?.textContent?.trim() ||
+        (card.textContent || "").trim().split("\n")[0].trim();
+
+      name = name.replace(/تعديل|تعطيل|تفعيل|حذف|ظاهر|مخفي/g, "").trim();
+      if (!name) name = `عنصر ${index + 1}`;
+
+      const statusText = /مخفي|معطل/.test(card.textContent || "") ? " - مخفي" : "";
+
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${name}${statusText}`;
+      select.appendChild(option);
+    });
+
+    select.addEventListener("change", () => {
+      const index = Number(select.value);
+      const card = cards[index];
+
+      summary.innerHTML = "";
+      actions.innerHTML = "";
+
+      if (!card) {
+        summary.classList.add("hidden");
+        actions.classList.add("hidden");
+        return;
+      }
+
+      const name =
+        card.querySelector("strong")?.textContent?.trim() ||
+        card.querySelector("h3")?.textContent?.trim() ||
+        card.querySelector("h4")?.textContent?.trim() ||
+        (card.textContent || "").trim().split("\n")[0].trim();
+
+      const isHidden = /مخفي|معطل/.test(card.textContent || "");
+
+      summary.classList.remove("hidden");
+      summary.innerHTML = `
+        <div>
+          <strong>${name || "العنصر المحدد"}</strong>
+          <small>${isHidden ? "مخفي من التطبيق" : "ظاهر داخل التطبيق"}</small>
+        </div>
+        <span class="badge ${isHidden ? "blocked" : "verified"}">${isHidden ? "مخفي" : "ظاهر"}</span>
+      `;
+
+      const originalButtons = Array.from(card.querySelectorAll("button"));
+      const wanted = originalButtons.filter((btn) => {
+        const text = (btn.textContent || "").trim();
+        return /تعديل|تعطيل|تفعيل|حذف/.test(text);
+      });
+
+      wanted.forEach((btn) => {
+        const clone = document.createElement("button");
+        const text = (btn.textContent || "").trim();
+        clone.type = "button";
+        clone.textContent = text;
+        clone.className = btn.className || "primary-btn";
+
+        if (/حذف/.test(text)) clone.className = "danger-btn";
+        else if (/تعطيل/.test(text)) clone.className = "warning-btn";
+        else if (/تفعيل/.test(text)) clone.className = "success-btn";
+        else if (/تعديل/.test(text)) clone.className = "update-btn";
+
+        clone.addEventListener("click", () => btn.click());
+        actions.appendChild(clone);
+      });
+
+      actions.classList.toggle("hidden", !wanted.length);
+    });
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(select);
+    wrapper.appendChild(summary);
+    wrapper.appendChild(actions);
+    box.prepend(wrapper);
+  });
+}
+
+setInterval(forceConfigCardsToDropdowns, 600);
+
+function hideConfigTabCounters() {
+  ["configTruckCount","configLoadCount","configGovernorateCount","configCityCount"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+}
+setInterval(hideConfigTabCounters, 700);
