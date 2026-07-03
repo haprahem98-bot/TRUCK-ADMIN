@@ -6090,3 +6090,76 @@ function hideConfigTabCounters() {
   });
 }
 setInterval(hideConfigTabCounters, 700);
+
+
+/* =========================================================
+   Force Notifications Mobile Cards
+   Rebuilds notification cards layout after render.
+   ========================================================= */
+function forceNotificationsMobileLayout() {
+  if (window.innerWidth > 960) return;
+
+  const section =
+    document.getElementById("notificationsSection") ||
+    document.querySelector('[data-section="notifications"]') ||
+    document.querySelector(".notifications-section");
+
+  if (!section) return;
+
+  section.classList.add("notifications-mobile-forced");
+
+  const possibleCards = Array.from(section.querySelectorAll(".data-card, .notification-card, .admin-notification-card, .alert-card, .card"))
+    .filter((card) => {
+      const text = (card.textContent || "").trim();
+      if (!text) return false;
+      if (card.closest(".filters-panel")) return false;
+      if (card.classList.contains("stat-card") || card.classList.contains("mini-stat-card")) return false;
+      return /سائق|طلب|حمولة|توثيق|اشتراك|متاح|تحديث|فتح|حساب|موقوف|منتهي/.test(text);
+    });
+
+  possibleCards.forEach((card) => {
+    if (card.dataset.notificationMobileForced === "true") return;
+    card.dataset.notificationMobileForced = "true";
+    card.classList.add("forced-notification-card");
+
+    const text = card.textContent || "";
+    const isGood = /جيد|متاح|normal|success/i.test(text);
+    const isWarning = /قريب|ينتهي|تحذير|warning/i.test(text);
+    const isDanger = /منتهي|موقوف|خطر|danger/i.test(text);
+
+    const dot = document.createElement("span");
+    dot.className = "forced-notification-dot";
+    if (isDanger) dot.classList.add("danger");
+    else if (isWarning) dot.classList.add("warning");
+    else if (isGood) dot.classList.add("good");
+    card.prepend(dot);
+
+    // اجمع أزرار الكرت وانقلها للأسفل داخل صندوق واضح
+    const buttons = Array.from(card.querySelectorAll("button"));
+    if (buttons.length) {
+      let actions = card.querySelector(".forced-notification-actions");
+      if (!actions) {
+        actions = document.createElement("div");
+        actions.className = "forced-notification-actions";
+        card.appendChild(actions);
+      }
+
+      buttons.forEach((btn) => {
+        if (btn.closest(".forced-notification-actions")) return;
+        actions.appendChild(btn);
+      });
+    }
+  });
+
+  // رتّب كروت الإحصائيات حتى لا تظهر كبيرة وفاضية
+  section.querySelectorAll(".stat-card, .mini-stat-card, .notification-stat-card").forEach((card) => {
+    card.classList.add("forced-notification-stat");
+  });
+
+  // رتّب الفلاتر
+  section.querySelectorAll(".filters-panel, .filter-card").forEach((filter) => {
+    filter.classList.add("forced-notification-filter");
+  });
+}
+
+setInterval(forceNotificationsMobileLayout, 500);
