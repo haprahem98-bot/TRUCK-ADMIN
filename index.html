@@ -348,16 +348,16 @@
 
         <div class="config-center-tabs" role="tablist" aria-label="إدارة القوائم">
           <button type="button" class="config-tab-btn active" data-config-tab="trucks" onclick="showConfigTab('trucks')">
-            🚚 الشاحنات
+            🚚 الشاحنات <span id="configTruckCount">0</span>
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="loads" onclick="showConfigTab('loads')">
-            📦 الحمولات
+            📦 الحمولات <span id="configLoadCount">0</span>
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="governorates" onclick="showConfigTab('governorates')">
-            🗺️ المحافظات
+            🗺️ المحافظات <span id="configGovernorateCount">0</span>
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="cities" onclick="showConfigTab('cities')">
-            🏙️ المدن
+            🏙️ المدن <span id="configCityCount">0</span>
           </button>
           <button type="button" class="config-tab-btn" data-config-tab="coordinates" onclick="showConfigTab('coordinates')">
             📍 الإحداثيات
@@ -376,7 +376,7 @@
               <input id="newTruckTypeInput" placeholder="مثال: براد، ستارة، قلاب" />
               <button class="success-btn" onclick="addTruckTypeConfig()">إضافة</button>
             </div>
-            <div id="truckTypesConfigList" class="config-dropdown-list"></div>
+            <div id="truckTypesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="loads">
@@ -390,7 +390,7 @@
               <input id="newLoadTypeInput" placeholder="مثال: مواد غذائية، أثاث، أجهزة" />
               <button class="success-btn" onclick="addLoadTypeConfig()">إضافة</button>
             </div>
-            <div id="loadTypesConfigList" class="config-dropdown-list"></div>
+            <div id="loadTypesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="governorates">
@@ -404,7 +404,7 @@
               <input id="newGovernorateInput" placeholder="مثال: حلب، إسطنبول، غازي عنتاب" />
               <button class="success-btn" onclick="addGovernorateConfig()">إضافة</button>
             </div>
-            <div id="governoratesConfigList" class="config-dropdown-list"></div>
+            <div id="governoratesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel" data-config-panel="cities">
@@ -419,7 +419,7 @@
               <input id="newCityInput" placeholder="مثال: إسنيورت، الباب، المزة" />
               <button class="success-btn" onclick="addCityConfig()">إضافة</button>
             </div>
-            <div id="citiesConfigList" class="config-dropdown-list"></div>
+            <div id="citiesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
           <div class="panel form-panel config-tab-panel coordinates-own-panel" data-config-panel="coordinates">
@@ -466,32 +466,86 @@
         </div>
       </section>
 
-      <section id="settingsSection" class="section hidden">
-        <div class="two-columns">
-          <div class="panel form-panel">
-            <h2>إعدادات التطبيق</h2>
-            <p>تُحفظ داخل app_config/settings، ويجب ربطها من التطبيق إذا أردت تفعيلها للمستخدمين.</p>
-            <div class="switch-row block">
-              <label><input id="registrationEnabled" type="checkbox" /> السماح بالتسجيل</label>
-              <label><input id="maintenanceMode" type="checkbox" /> وضع الصيانة</label>
+      <section id="settingsSection" class="section hidden settings-pro-section">
+        <div class="settings-pro-layout">
+          <div class="panel settings-pro-card">
+            <div class="settings-pro-head">
+              <div>
+                <h2>إعدادات التطبيق</h2>
+                <p>تحكم بالتسجيل، الصيانة، المدة المجانية، ورقم تواصل الإدارة من مكان واحد.</p>
+              </div>
             </div>
-            <label>رقم الدعم</label>
-            <input id="supportPhone" placeholder="مثال: 9639xxxxxxx" />
-            <label>مدة مجانية بالأشهر</label>
-            <input id="freeMonths" type="number" min="0" placeholder="مثال: 6" />
-            <label>ملاحظة داخلية</label>
-            <textarea id="adminInternalNote" placeholder="ملاحظة للإدارة فقط"></textarea>
-            <button class="primary-btn" onclick="saveAppSettings()">حفظ الإعدادات</button>
+
+            <div class="settings-pro-toggles">
+              <label class="settings-pro-toggle">
+                <input id="registrationEnabled" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>السماح بالتسجيل</strong>
+                  <small>عند الإيقاف، المستخدمين الجدد لا يستطيعون إنشاء حساب.</small>
+                </span>
+              </label>
+
+              <label class="settings-pro-toggle">
+                <input id="maintenanceMode" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>وضع الصيانة</strong>
+                  <small>عند التفعيل، التطبيق يتوقف مؤقتاً للمستخدمين.</small>
+                </span>
+              </label>
+
+              <label class="settings-pro-toggle">
+                <input id="freeTrialEnabled" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>تفعيل المدة المجانية</strong>
+                  <small>إذا كانت مفعلة، الحساب الجديد يأخذ المدة المجانية بعد التوثيق.</small>
+                </span>
+              </label>
+            </div>
+
+            <div class="settings-pro-fields">
+              <label class="settings-pro-field">
+                <span>رقم الدعم / واتساب الإدارة</span>
+                <input id="supportPhone" placeholder="مثال: 905xxxxxxxxx" inputmode="tel" />
+              </label>
+
+              <label class="settings-pro-field">
+                <span>المدة المجانية بالأشهر</span>
+                <input id="freeMonths" type="number" min="0" placeholder="مثال: 6" />
+              </label>
+
+              <label class="settings-pro-field settings-pro-field-full">
+                <span>ملاحظة داخلية</span>
+                <textarea id="adminInternalNote" placeholder="ملاحظة للإدارة فقط"></textarea>
+              </label>
+            </div>
+
+            <button class="primary-btn settings-pro-save" onclick="saveAppSettings()">حفظ الإعدادات</button>
           </div>
 
-          <div class="panel form-panel danger-panel">
-            <h2>عدادات الترقيم</h2>
-            <p>تحكم بآخر رقم للطلبات والحمولات. انتبه: تغييرها بشكل خاطئ قد يسبب قفزات بالأرقام.</p>
-            <label>آخر رقم طلب ORD</label>
-            <input id="ordersCounterInput" type="number" min="0" />
-            <label>آخر رقم حمولة LOAD</label>
-            <input id="loadsCounterInput" type="number" min="0" />
-            <button class="warning-btn" onclick="saveCounters()">حفظ العدادات</button>
+          <div class="panel settings-pro-card settings-pro-counter-card">
+            <div class="settings-pro-head">
+              <div>
+                <h2>عدادات الترقيم</h2>
+                <p>غيّرها بحذر فقط عند الحاجة، لأنها تتحكم بأرقام الطلبات والحمولات.</p>
+              </div>
+            </div>
+
+            <div class="settings-pro-fields">
+              <label class="settings-pro-field">
+                <span>آخر رقم طلب ORD</span>
+                <input id="ordersCounterInput" type="number" min="0" />
+              </label>
+
+              <label class="settings-pro-field">
+                <span>آخر رقم حمولة LOAD</span>
+                <input id="loadsCounterInput" type="number" min="0" />
+              </label>
+            </div>
+
+            <button class="warning-btn settings-pro-save" onclick="saveCounters()">حفظ العدادات</button>
           </div>
         </div>
       </section>

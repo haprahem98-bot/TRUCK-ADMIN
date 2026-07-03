@@ -843,100 +843,12 @@ function addSettingHelpIcon(inputId, tooltipText) {
 }
 
 function ensureSettingsHelpTooltips() {
-  const registrationTooltip = "إذا كان مفعّل: المستخدمين يقدروا ينشئوا حسابات جديدة. إذا كان موقوف: زر التسجيل/إنشاء حساب يتوقف والتطبيق يخبر المستخدم أن التسجيل موقوف من الإدارة.";
-  const maintenanceTooltip = "إذا كان مفعّل: التطبيق يدخل وضع الصيانة، يمنع الدخول والاستخدام مؤقتاً ويظهر للمستخدم أن التطبيق قيد الصيانة. إذا كان موقوف: التطبيق يعمل بشكل طبيعي.";
-
-  const ok1 = addSettingHelpIcon("registrationEnabled", registrationTooltip);
-  const ok2 = addSettingHelpIcon("maintenanceMode", maintenanceTooltip);
-
-  if (!ok1 || !ok2) {
-    setTimeout(ensureSettingsHelpTooltips, 500);
-  }
+  return;
 }
 
 
 function ensureFreeTrialEnabledSettingField() {
-  if ($("freeTrialEnabled")) return;
-
-  const tooltipText = "إذا فعلتها: أي مستخدم جديد بعد التوثيق يأخذ المدة المجانية المحددة. إذا أوقفتها: المستخدم بعد التوثيق يصبح موثق فقط ويحتاج اشتراك يدوي من صفحة الاشتراكات.";
-
-  const maintenanceInput = $("maintenanceMode");
-  const freeMonthsInput = $("freeMonths");
-  const settingsSection =
-    $("settingsSection") ||
-    document.querySelector('[data-section="settings"]') ||
-    document.querySelector(".settings-section") ||
-    document.querySelector("#settings");
-
-  const wrapper = document.createElement("div");
-  wrapper.id = "freeTrialEnabledCard";
-  wrapper.className = "admin-setting-card free-trial-toggle-card";
-  wrapper.title = tooltipText;
-  wrapper.style.cssText = `
-    display:block;
-    width:100%;
-    padding:14px 16px;
-    margin:12px 0;
-    border-radius:18px;
-    background:#f8fafc;
-    border:1px solid #dbeafe;
-    box-shadow:0 8px 22px rgba(15,23,42,.06);
-  `;
-
-  wrapper.innerHTML = `
-    <label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin:0;">
-      <input type="checkbox" id="freeTrialEnabled" style="margin-top:6px;transform:scale(1.25);">
-      <span style="display:flex;flex-direction:column;gap:6px;line-height:1.6;flex:1;">
-        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <strong style="font-size:15px;color:#0f172a;">تفعيل المدة المجانية للحسابات الجديدة</strong>
-          <span
-            title="${tooltipText}"
-            style="width:22px;height:22px;border-radius:999px;background:#e0f2fe;color:#0369a1;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;"
-          >؟</span>
-        </span>
-        <small style="color:#64748b;font-weight:700;">
-          مرّر الماوس فوق علامة الاستفهام لمعرفة ماذا يحدث عند التفعيل أو الإيقاف.
-        </small>
-      </span>
-    </label>
-  `;
-
-  const findBlock = (input) => {
-    if (!input) return null;
-    return input.closest(".form-group, .setting-card, .field, label, .toggle-row, .settings-row, div") || input.parentElement;
-  };
-
-  // المكان الأساسي: تحت وضع الصيانة مباشرة
-  const maintenanceBlock = findBlock(maintenanceInput);
-  if (maintenanceBlock && maintenanceBlock.parentElement) {
-    maintenanceBlock.insertAdjacentElement("afterend", wrapper);
-    return;
-  }
-
-  // احتياط: فوق حقل مدة مجانية بالأشهر
-  const freeMonthsBlock = findBlock(freeMonthsInput);
-  if (freeMonthsBlock && freeMonthsBlock.parentElement) {
-    freeMonthsBlock.parentElement.insertBefore(wrapper, freeMonthsBlock);
-    return;
-  }
-
-  // احتياط أخير: داخل صفحة الإعدادات
-  const saveButton =
-    settingsSection?.querySelector('button[onclick*="saveAppSettings"]') ||
-    settingsSection?.querySelector(".primary-btn") ||
-    settingsSection?.querySelector("button");
-
-  if (settingsSection && saveButton && saveButton.parentElement) {
-    saveButton.parentElement.insertBefore(wrapper, saveButton);
-    return;
-  }
-
-  if (settingsSection) {
-    settingsSection.prepend(wrapper);
-    return;
-  }
-
-  setTimeout(ensureFreeTrialEnabledSettingField, 500);
+  return;
 }
 
 
@@ -6187,76 +6099,16 @@ setInterval(forceNotificationsMobileLayout, 500);
    Fixes huge checkbox controls after settings page render.
    ========================================================= */
 function forceSettingsMobileLayout() {
-  const section = document.getElementById("settingsSection");
-  if (!section || section.classList.contains("hidden")) return;
-
-  section.classList.add("settings-mobile-forced");
-
-  // Force all checkboxes/radios to normal mobile size using inline important styles
-  section.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach((input) => {
-    input.classList.add("settings-checkbox-forced");
-    input.style.setProperty("width", "24px", "important");
-    input.style.setProperty("height", "24px", "important");
-    input.style.setProperty("min-width", "24px", "important");
-    input.style.setProperty("min-height", "24px", "important");
-    input.style.setProperty("max-width", "24px", "important");
-    input.style.setProperty("max-height", "24px", "important");
-    input.style.setProperty("flex", "0 0 24px", "important");
-    input.style.setProperty("margin", "0", "important");
-    input.style.setProperty("padding", "0", "important");
-    input.style.setProperty("transform", "none", "important");
-    input.style.setProperty("box-shadow", "none", "important");
-
-    const row =
-      input.closest("label") ||
-      input.closest(".setting-toggle") ||
-      input.closest(".toggle-row") ||
-      input.closest(".checkbox-row") ||
-      input.parentElement;
-
-    if (row) {
-      row.classList.add("settings-toggle-row-forced");
-      row.style.setProperty("display", "grid", "important");
-      row.style.setProperty("grid-template-columns", "30px minmax(0, 1fr) 28px", "important");
-      row.style.setProperty("align-items", "center", "important");
-      row.style.setProperty("gap", "10px", "important");
-      row.style.setProperty("width", "100%", "important");
-      row.style.setProperty("max-width", "100%", "important");
-      row.style.setProperty("min-height", "56px", "important");
-      row.style.setProperty("padding", "12px", "important");
-      row.style.setProperty("border-radius", "18px", "important");
-      row.style.setProperty("background", "#f8fafc", "important");
-      row.style.setProperty("border", "1px solid #e2e8f0", "important");
-      row.style.setProperty("box-sizing", "border-box", "important");
-      row.style.setProperty("overflow", "hidden", "important");
-    }
-  });
-
-  // Compact textareas that became huge
-  section.querySelectorAll("textarea").forEach((textarea) => {
-    textarea.classList.add("settings-textarea-forced");
-    textarea.style.setProperty("width", "100%", "important");
-    textarea.style.setProperty("max-width", "100%", "important");
-    textarea.style.setProperty("min-height", "115px", "important");
-    textarea.style.setProperty("max-height", "170px", "important");
-    textarea.style.setProperty("box-sizing", "border-box", "important");
-    textarea.style.setProperty("resize", "vertical", "important");
-  });
-
-  // Force normal inputs
-  section.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), select').forEach((field) => {
-    field.classList.add("settings-field-forced");
-    field.style.setProperty("width", "100%", "important");
-    field.style.setProperty("max-width", "100%", "important");
-    field.style.setProperty("min-height", "48px", "important");
-    field.style.setProperty("box-sizing", "border-box", "important");
-  });
-
-  // Prevent left overflow from any help/text nodes
-  section.querySelectorAll("*").forEach((el) => {
-    el.style.setProperty("max-width", "100%", "important");
-    el.style.setProperty("box-sizing", "border-box", "important");
-  });
+  return;
 }
 
 setInterval(forceSettingsMobileLayout, 500);
+
+
+/* Settings professional layout normalizer */
+function normalizeProfessionalSettingsPage() {
+  const section = document.getElementById("settingsSection");
+  if (!section) return;
+  section.classList.add("settings-pro-ready");
+}
+setInterval(normalizeProfessionalSettingsPage, 800);
