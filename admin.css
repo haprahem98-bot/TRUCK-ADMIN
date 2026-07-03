@@ -3504,3 +3504,210 @@
     font-size:18px !important;
   }
 }
+
+
+/* =========================================================
+   Settings Mobile Professional Fix
+   Fixes huge checkboxes, overflow, and large textarea on phone.
+   ========================================================= */
+
+@media(max-width:960px){
+  #settingsSection,
+  .settings-section{
+    width:100% !important;
+    max-width:100% !important;
+    overflow-x:hidden !important;
+  }
+
+  #settingsSection .panel,
+  #settingsSection .form-panel,
+  #settingsSection .settings-card,
+  #settingsSection .admin-setting-card{
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+    padding:16px !important;
+    border-radius:22px !important;
+  }
+
+  #settingsSection h2{
+    font-size:25px !important;
+    line-height:1.35 !important;
+    margin-bottom:8px !important;
+  }
+
+  #settingsSection p{
+    font-size:14px !important;
+    line-height:1.8 !important;
+    overflow-wrap:anywhere !important;
+  }
+
+  #settingsSection .form-grid,
+  #settingsSection .settings-grid,
+  #settingsSection .config-grid{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:14px !important;
+    width:100% !important;
+  }
+
+  #settingsSection label{
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+  }
+
+  #settingsSection input:not([type="checkbox"]):not([type="radio"]),
+  #settingsSection select,
+  #settingsSection textarea{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+    border-radius:15px !important;
+    font-size:16px !important;
+  }
+
+  #settingsSection input:not([type="checkbox"]):not([type="radio"]),
+  #settingsSection select{
+    min-height:48px !important;
+  }
+
+  #settingsSection textarea{
+    min-height:120px !important;
+    max-height:180px !important;
+    resize:vertical !important;
+  }
+
+  /* إصلاح مربعات الصح */
+  #settingsSection input[type="checkbox"],
+  #settingsSection input[type="radio"]{
+    width:24px !important;
+    height:24px !important;
+    min-width:24px !important;
+    min-height:24px !important;
+    max-width:24px !important;
+    max-height:24px !important;
+    flex:0 0 24px !important;
+    margin:0 !important;
+    padding:0 !important;
+    accent-color:#0b84ff !important;
+    transform:none !important;
+    box-shadow:none !important;
+  }
+
+  /* أي كرت خيار فيه checkbox */
+  #settingsSection .setting-toggle,
+  #settingsSection .toggle-row,
+  #settingsSection .checkbox-row,
+  #settingsSection .free-trial-toggle-card,
+  #settingsSection .admin-setting-toggle,
+  #settingsSection label:has(input[type="checkbox"]),
+  #settingsSection label:has(input[type="radio"]){
+    display:grid !important;
+    grid-template-columns:30px minmax(0, 1fr) auto !important;
+    align-items:center !important;
+    gap:10px !important;
+    width:100% !important;
+    min-height:56px !important;
+    padding:12px !important;
+    border-radius:18px !important;
+    background:#f8fafc !important;
+    border:1px solid #e2e8f0 !important;
+    box-sizing:border-box !important;
+    overflow:hidden !important;
+  }
+
+  #settingsSection label:has(input[type="checkbox"]) input,
+  #settingsSection label:has(input[type="radio"]) input{
+    grid-column:1 !important;
+  }
+
+  #settingsSection label:has(input[type="checkbox"]) span,
+  #settingsSection label:has(input[type="radio"]) span,
+  #settingsSection .setting-toggle span,
+  #settingsSection .toggle-row span,
+  #settingsSection .checkbox-row span,
+  #settingsSection .free-trial-toggle-card span{
+    grid-column:2 !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    overflow-wrap:anywhere !important;
+    color:#0f172a !important;
+    font-size:15px !important;
+    font-weight:900 !important;
+    line-height:1.55 !important;
+  }
+
+  /* علامة الاستفهام الصغيرة */
+  #settingsSection .setting-help,
+  #settingsSection .setting-help-icon,
+  #settingsSection .help-icon{
+    grid-column:3 !important;
+    width:24px !important;
+    height:24px !important;
+    min-width:24px !important;
+    min-height:24px !important;
+    border-radius:999px !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    font-size:13px !important;
+    font-weight:900 !important;
+    line-height:1 !important;
+  }
+
+  /* إلغاء أي عناصر قديمة طالعة على الطرف */
+  #settingsSection .setting-toggle *,
+  #settingsSection .toggle-row *,
+  #settingsSection .checkbox-row *,
+  #settingsSection .free-trial-toggle-card *{
+    max-width:100% !important;
+  }
+
+  #settingsSection .setting-card,
+  #settingsSection .settings-row{
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+  }
+
+  #settingsSection button{
+    width:100% !important;
+    min-height:48px !important;
+    border-radius:15px !important;
+  }
+
+  /* الجرس العائم ما يغطي الإعدادات كثير */
+  body:has(#settingsSection:not(.hidden)) .global-notification-bell{
+    bottom:calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    left:12px !important;
+    width:50px !important;
+    height:50px !important;
+    border-radius:18px !important;
+  }
+}
+
+@media(max-width:520px){
+  #settingsSection .panel,
+  #settingsSection .form-panel{
+    padding:14px !important;
+  }
+
+  #settingsSection h2{
+    font-size:23px !important;
+  }
+
+  #settingsSection .setting-toggle,
+  #settingsSection .toggle-row,
+  #settingsSection .checkbox-row,
+  #settingsSection .free-trial-toggle-card,
+  #settingsSection .admin-setting-toggle,
+  #settingsSection label:has(input[type="checkbox"]),
+  #settingsSection label:has(input[type="radio"]){
+    grid-template-columns:28px minmax(0, 1fr) 24px !important;
+    gap:8px !important;
+    padding:11px !important;
+  }
+}
