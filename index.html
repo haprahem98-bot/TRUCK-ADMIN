@@ -338,65 +338,103 @@
 
 
       <section id="configSection" class="section hidden">
-        <div class="panel hero-panel">
-          <h2>إدارة القوائم</h2>
-          <p>أضف وعدّل وعطّل المحافظات والمدن وأنواع الشاحنات من هنا. تظهر التغييرات داخل التطبيق بدون تحديث جديد.</p>
+        <div class="panel hero-panel config-center-hero">
+          <div>
+            <h2>مركز إدارة القوائم</h2>
+            <p>رتّب الشاحنات والحمولات والمحافظات والمدن من مكان واحد بدون فوضى. اختر القسم المطلوب من التبويبات بالأسفل.</p>
+          </div>
           <button class="primary-btn" onclick="seedDefaultAppConfig()">إضافة القوائم الأساسية</button>
         </div>
 
-        <div class="config-grid">
-          <div class="panel form-panel">
-            <h2>أنواع الشاحنات</h2>
-            <p>تظهر عند السائق في بيانات الشاحنة، وعند صاحب البضاعة في نوع الشاحنة المطلوبة.</p>
-            <label>نوع شاحنة جديد</label>
-            <input id="newTruckTypeInput" placeholder="مثال: براد، ستارة، قلاب" />
-            <button class="success-btn full" onclick="addTruckTypeConfig()">إضافة نوع شاحنة</button>
-            <div id="truckTypesConfigList" class="cards-list" style="margin-top:14px"></div>
+        <div class="config-center-tabs" role="tablist" aria-label="إدارة القوائم">
+          <button type="button" class="config-tab-btn active" data-config-tab="trucks" onclick="showConfigTab('trucks')">
+            🚚 الشاحنات <span id="configTruckCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="loads" onclick="showConfigTab('loads')">
+            📦 الحمولات <span id="configLoadCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="governorates" onclick="showConfigTab('governorates')">
+            🗺️ المحافظات <span id="configGovernorateCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="cities" onclick="showConfigTab('cities')">
+            🏙️ المدن <span id="configCityCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="coordinates" onclick="showConfigTab('coordinates')">
+            📍 الإحداثيات
+          </button>
+        </div>
+
+        <div class="config-center-layout">
+          <div class="panel form-panel config-tab-panel active" data-config-panel="trucks">
+            <div class="config-panel-head">
+              <div>
+                <h2>أنواع الشاحنات</h2>
+                <p>أضف نوع شاحنة واحد فقط من هنا، والقائمة تظهر مرتبة بالأسفل.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newTruckTypeInput" placeholder="مثال: براد، ستارة، قلاب" />
+              <button class="success-btn" onclick="addTruckTypeConfig()">إضافة</button>
+            </div>
+            <div id="truckTypesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
-          <div class="panel form-panel">
-            <h2>أنواع الحمولة</h2>
-            <p>جاهزة للربط لاحقاً مع خانة نوع البضاعة.</p>
-            <label>نوع حمولة جديد</label>
-            <input id="newLoadTypeInput" placeholder="مثال: مواد غذائية، أثاث، أجهزة" />
-            <button class="success-btn full" onclick="addLoadTypeConfig()">إضافة نوع حمولة</button>
-            <div id="loadTypesConfigList" class="cards-list" style="margin-top:14px"></div>
+          <div class="panel form-panel config-tab-panel" data-config-panel="loads">
+            <div class="config-panel-head">
+              <div>
+                <h2>أنواع الحمولة</h2>
+                <p>هذه القائمة تُستخدم لاحقاً لتصنيف البضائع والطلبات.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newLoadTypeInput" placeholder="مثال: مواد غذائية، أثاث، أجهزة" />
+              <button class="success-btn" onclick="addLoadTypeConfig()">إضافة</button>
+            </div>
+            <div id="loadTypesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
-          <div class="panel form-panel">
-            <h2>المحافظات</h2>
-            <p>تظهر في حقول من محافظة وإلى محافظة.</p>
-            <label>محافظة جديدة</label>
-            <input id="newGovernorateInput" placeholder="مثال: حلب، إسطنبول، غازي عنتاب" />
-            <button class="success-btn full" onclick="addGovernorateConfig()">إضافة محافظة</button>
-            <div id="governoratesConfigList" class="cards-list" style="margin-top:14px"></div>
+          <div class="panel form-panel config-tab-panel" data-config-panel="governorates">
+            <div class="config-panel-head">
+              <div>
+                <h2>المحافظات</h2>
+                <p>أضف المحافظة أولاً، وبعدها انتقل إلى تبويب المدن لإضافة المدن التابعة لها.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newGovernorateInput" placeholder="مثال: حلب، إسطنبول، غازي عنتاب" />
+              <button class="success-btn" onclick="addGovernorateConfig()">إضافة</button>
+            </div>
+            <div id="governoratesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
-          <div class="panel form-panel">
-            <h2>المدن / المناطق</h2>
-            <p>كل مدينة مربوطة بمحافظة حتى تظهر بالقائمة الصحيحة.</p>
-            <label>المحافظة</label>
-            <select id="cityGovernorateSelect"></select>
-            <label>مدينة أو منطقة جديدة</label>
-            <input id="newCityInput" placeholder="مثال: إسنيورت، الباب، المزة" />
-            <button class="success-btn full" onclick="addCityConfig()">إضافة مدينة</button>
-            <div id="citiesConfigList" class="cards-list" style="margin-top:14px"></div>
+          <div class="panel form-panel config-tab-panel" data-config-panel="cities">
+            <div class="config-panel-head">
+              <div>
+                <h2>المدن / المناطق</h2>
+                <p>اختر المحافظة ثم أضف المدينة. المدن تظهر مجمّعة حسب المحافظة.</p>
+              </div>
+            </div>
+            <div class="config-add-row city-add-row">
+              <select id="cityGovernorateSelect"></select>
+              <input id="newCityInput" placeholder="مثال: إسنيورت، الباب، المزة" />
+              <button class="success-btn" onclick="addCityConfig()">إضافة</button>
+            </div>
+            <div id="citiesConfigList" class="cards-list config-list-clean"></div>
           </div>
 
-          <div class="panel form-panel coordinates-own-panel">
+          <div class="panel form-panel config-tab-panel coordinates-own-panel" data-config-panel="coordinates">
             <div class="coordinates-module-head">
               <div class="coordinates-module-icon">📍</div>
               <div>
                 <h2>إحداثيات المدن</h2>
-                <p>مربع مستقل عن المدن. أي تعديل عليه لاحقاً يتم من ملف منفصل بدون لمس تسجيل الدخول أو باقي أقسام الإدارة.</p>
+                <p>هذا القسم مستقل. اختَر محافظة ومدينة ثم أضف lat/lng فقط للمدينة التي تحتاج تحديد موقعها.</p>
               </div>
             </div>
 
-            <label>المحافظة</label>
-            <select id="coordinatesGovernorateSelect"></select>
-
-            <label>المدينة / المنطقة</label>
-            <select id="coordinatesCitySelect"></select>
+            <div class="config-add-row city-add-row">
+              <select id="coordinatesGovernorateSelect"></select>
+              <select id="coordinatesCitySelect"></select>
+            </div>
 
             <div id="selectedCoordinatesStatus" class="coordinates-status">
               اختر مدينة لعرض حالة الإحداثيات.

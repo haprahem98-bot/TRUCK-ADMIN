@@ -2755,3 +2755,259 @@
     grid-template-columns:1fr !important;
   }
 }
+
+
+/* =========================================================
+   Config Center Redesign
+   Clean tabs for trucks, loads, governorates, cities
+   ========================================================= */
+
+.config-center-hero{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+
+.config-center-tabs{
+  display:grid;
+  grid-template-columns:repeat(5, minmax(0, 1fr));
+  gap:10px;
+  margin:14px 0;
+}
+
+.config-tab-btn{
+  min-height:54px;
+  border:1px solid #dbeafe;
+  border-radius:18px;
+  background:#fff;
+  color:#0f172a;
+  font-weight:900;
+  box-shadow:0 8px 20px rgba(15,23,42,.05);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+}
+
+.config-tab-btn span{
+  min-width:24px;
+  height:24px;
+  padding:0 7px;
+  border-radius:999px;
+  background:#e0f2fe;
+  color:#0369a1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:900;
+}
+
+.config-tab-btn.active{
+  background:linear-gradient(135deg,#0b3a67,#2563eb);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 14px 30px rgba(37,99,235,.20);
+}
+
+.config-tab-btn.active span{
+  background:rgba(255,255,255,.18);
+  color:#fff;
+}
+
+.config-center-layout{
+  width:100%;
+}
+
+.config-tab-panel{
+  display:none;
+}
+
+.config-tab-panel.active{
+  display:block;
+}
+
+.config-panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.config-panel-head h2{
+  margin-bottom:4px;
+}
+
+.config-add-row{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 140px;
+  gap:10px;
+  align-items:end;
+  padding:12px;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  border-radius:18px;
+  margin-bottom:14px;
+}
+
+.config-add-row.city-add-row{
+  grid-template-columns:220px minmax(0, 1fr) 140px;
+}
+
+.config-add-row input,
+.config-add-row select{
+  margin:0 !important;
+  min-height:48px;
+}
+
+.config-add-row button{
+  width:100%;
+  min-height:48px;
+}
+
+.config-list-clean{
+  margin-top:0 !important;
+  display:block !important;
+}
+
+.config-list-table{
+  display:grid;
+  gap:8px;
+}
+
+.config-list-row{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  padding:12px;
+  border:1px solid #e2e8f0;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 6px 16px rgba(15,23,42,.04);
+}
+
+.config-list-row.is-disabled{
+  opacity:.72;
+  background:#f8fafc;
+}
+
+.config-row-main{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.config-row-main strong{
+  color:#0f172a;
+  font-size:15px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.config-row-main small{
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+
+.config-row-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.config-row-actions button{
+  min-height:38px !important;
+  padding:0 10px !important;
+  border-radius:12px !important;
+  font-size:12px !important;
+}
+
+.config-city-group{
+  display:grid;
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.config-city-group-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#eff6ff;
+  color:#0b3a67;
+  font-weight:900;
+}
+
+.config-city-group-head span{
+  color:#2563eb;
+  font-size:12px;
+}
+
+.config-empty{
+  border-radius:16px;
+  padding:18px;
+}
+
+@media(max-width:960px){
+  .config-center-hero{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .config-center-tabs{
+    display:flex;
+    overflow-x:auto;
+    gap:8px;
+    padding-bottom:6px;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .config-tab-btn{
+    flex:0 0 auto;
+    min-width:145px;
+    min-height:50px;
+  }
+
+  .config-add-row,
+  .config-add-row.city-add-row{
+    grid-template-columns:1fr;
+  }
+
+  .config-list-row{
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+
+  .config-row-main strong{
+    white-space:normal;
+  }
+
+  .config-row-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    width:100%;
+  }
+
+  .config-row-actions button{
+    width:100% !important;
+  }
+}
+
+@media(max-width:520px){
+  .config-tab-btn{
+    min-width:132px;
+    font-size:13px;
+  }
+
+  .config-row-actions{
+    grid-template-columns:1fr;
+  }
+}

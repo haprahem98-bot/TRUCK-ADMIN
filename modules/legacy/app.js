@@ -5346,12 +5346,45 @@ function listenAppConfigLists() {
   }));
 }
 
+
+function updateConfigCenterStats() {
+  if ($("configTruckCount")) $("configTruckCount").textContent = String(truckTypesConfig.length || 0);
+  if ($("configLoadCount")) $("configLoadCount").textContent = String(loadTypesConfig.length || 0);
+  if ($("configGovernorateCount")) $("configGovernorateCount").textContent = String(governoratesConfig.length || 0);
+  if ($("configCityCount")) $("configCityCount").textContent = String(citiesConfig.length || 0);
+}
+
+window.showConfigTab = function (tabName) {
+  const selected = tabName || "trucks";
+
+  document.querySelectorAll(".config-tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.configTab === selected);
+  });
+
+  document.querySelectorAll(".config-tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.configPanel === selected);
+  });
+
+  updateConfigCenterStats();
+};
+
+function initConfigCenter() {
+  if (!document.querySelector(".config-tab-panel.active")) {
+    window.showConfigTab("trucks");
+  } else {
+    updateConfigCenterStats();
+  }
+}
+
+
 function renderAppConfigLists() {
   renderConfigList("truckTypesConfigList", truckTypesConfig, "truck_types");
   renderConfigList("loadTypesConfigList", loadTypesConfig, "load_types");
   renderConfigList("governoratesConfigList", governoratesConfig, "governorates");
   renderCitiesConfigList();
   fillGovernorateSelect();
+  updateConfigCenterStats();
+  initConfigCenter();
 }
 
 function renderConfigList(containerId, items, collectionName) {
@@ -5359,27 +5392,28 @@ function renderConfigList(containerId, items, collectionName) {
   if (!box) return;
 
   if (!items.length) {
-    box.innerHTML = `<div class="empty-box">لا توجد عناصر بعد</div>`;
+    box.innerHTML = `<div class="empty-box config-empty">لا توجد عناصر بعد</div>`;
     return;
   }
 
-  box.innerHTML = items.map((item) => `
-    <div class="data-card">
-      <div class="card-top">
-        <div class="avatar">${item.active ? "✅" : "⛔"}</div>
-        <div class="card-title">
-          <h3>${escapeHtml(item.nameAr)}</h3>
-          <p>ترتيب: ${item.sortOrder || "-"} • ${item.active ? "مفعّل" : "معطّل"}</p>
+  box.innerHTML = `
+    <div class="config-list-table">
+      ${items.map((item) => `
+        <div class="config-list-row ${item.active ? "" : "is-disabled"}">
+          <div class="config-row-main">
+            <strong>${escapeHtml(item.nameAr)}</strong>
+            <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+          </div>
+          <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
+          <div class="config-row-actions">
+            <button class="update-btn" onclick="renameConfigItem('${collectionName}','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
+            <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
+            <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${item.docId}')">حذف</button>
+          </div>
         </div>
-        <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
-      </div>
-      <div class="actions">
-        <button class="update-btn" onclick="renameConfigItem('${collectionName}','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
-        <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('${collectionName}','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
-        <button class="danger-btn" onclick="deleteConfigItem('${collectionName}','${item.docId}')">حذف</button>
-      </div>
+      `).join("")}
     </div>
-  `).join("");
+  `;
 }
 
 function renderCitiesConfigList() {
@@ -5387,24 +5421,40 @@ function renderCitiesConfigList() {
   if (!box) return;
 
   if (!citiesConfig.length) {
-    box.innerHTML = `<div class="empty-box">لا توجد مدن بعد</div>`;
+    box.innerHTML = `<div class="empty-box config-empty">لا توجد مدن بعد</div>`;
     return;
   }
 
-  box.innerHTML = citiesConfig.map((item) => `
-    <div class="data-card">
-      <div class="card-top">
-        <div class="avatar">${item.active ? "🏙️" : "⛔"}</div>
-        <div class="card-title">
-          <h3>${escapeHtml(item.nameAr)}</h3>
-          <p>المحافظة: ${escapeHtml(item.governorateName || "-")} • ترتيب: ${item.sortOrder || "-"}</p>
-        </div>
-        <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
+  const grouped = citiesConfig.reduce((acc, item) => {
+    const key = item.governorateName || "بدون محافظة";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  const governorateNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b, "ar"));
+
+  box.innerHTML = governorateNames.map((governorateName) => `
+    <div class="config-city-group">
+      <div class="config-city-group-head">
+        <strong>${escapeHtml(governorateName)}</strong>
+        <span>${grouped[governorateName].length} مدينة</span>
       </div>
-      <div class="actions">
-        <button class="update-btn" onclick="renameConfigItem('cities','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
-        <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
-        <button class="danger-btn" onclick="deleteConfigItem('cities','${item.docId}')">حذف</button>
+      <div class="config-list-table">
+        ${grouped[governorateName].map((item) => `
+          <div class="config-list-row ${item.active ? "" : "is-disabled"}">
+            <div class="config-row-main">
+              <strong>${escapeHtml(item.nameAr)}</strong>
+              <small>ترتيب ${item.sortOrder || "-"} • ${item.active ? "ظاهر داخل التطبيق" : "مخفي من التطبيق"}</small>
+            </div>
+            <span class="badge ${item.active ? "verified" : "blocked"}">${item.active ? "ظاهر" : "مخفي"}</span>
+            <div class="config-row-actions">
+              <button class="update-btn" onclick="renameConfigItem('cities','${item.docId}','${escapeHtml(item.nameAr)}')">تعديل</button>
+              <button class="${item.active ? "warning-btn" : "success-btn"}" onclick="toggleConfigItem('cities','${item.docId}',${!item.active})">${item.active ? "تعطيل" : "تفعيل"}</button>
+              <button class="danger-btn" onclick="deleteConfigItem('cities','${item.docId}')">حذف</button>
+            </div>
+          </div>
+        `).join("")}
       </div>
     </div>
   `).join("");
