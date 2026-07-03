@@ -327,8 +327,42 @@ function readNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function trackingLatitude(tracking) {
+  if (!tracking) return null;
+
+  return readNumber(
+    tracking.driverLat ??
+    tracking.lat ??
+    tracking.latitude ??
+    tracking.currentLat ??
+    tracking.lastLat ??
+    tracking.location?.lat ??
+    tracking.location?.latitude ??
+    tracking.position?.lat ??
+    tracking.position?.latitude ??
+    tracking.geoPoint?.latitude
+  );
+}
+
+function trackingLongitude(tracking) {
+  if (!tracking) return null;
+
+  return readNumber(
+    tracking.driverLng ??
+    tracking.lng ??
+    tracking.longitude ??
+    tracking.currentLng ??
+    tracking.lastLng ??
+    tracking.location?.lng ??
+    tracking.location?.longitude ??
+    tracking.position?.lng ??
+    tracking.position?.longitude ??
+    tracking.geoPoint?.longitude
+  );
+}
+
 function hasTrackingLocation(tracking) {
-  return readNumber(tracking?.driverLat) !== null && readNumber(tracking?.driverLng) !== null;
+  return trackingLatitude(tracking) !== null && trackingLongitude(tracking) !== null;
 }
 
 function isTrackingLive(tracking) {
@@ -4136,7 +4170,8 @@ function renderTrackingStats() {
   if (!$("trackingStats")) return;
 
   const trackableOrders = allOrdersCache.filter((o) => {
-    return ["مقبول", "تم التحميل", "في الطريق"].includes(o.status);
+    const tracking = getTrackingForOrder(o);
+    return ["مقبول", "تم التحميل", "في الطريق"].includes(o.status) || hasTrackingLocation(tracking);
   });
 
   const knownLocations = trackableOrders.filter((order) => {
@@ -4163,7 +4198,8 @@ function renderTracking() {
   const text = trackingSearchText.toLowerCase();
 
   let orders = allOrdersCache.filter((order) => {
-    return ["مقبول", "تم التحميل", "في الطريق"].includes(order.status);
+    const tracking = getTrackingForOrder(order);
+    return ["مقبول", "تم التحميل", "في الطريق"].includes(order.status) || hasTrackingLocation(tracking);
   });
 
   orders = orders.filter((order) => {
@@ -4184,7 +4220,7 @@ function renderTracking() {
     return matchSearch && matchFilter;
   }).sort(byCreatedDesc);
 
-  container.innerHTML = orders.length ? "" : `<div class="empty-box">لا توجد طلبات تتبع حسب الفلتر الحالي</div>`;
+  container.innerHTML = orders.length ? "" : `<div class="empty-box">لا توجد طلبات تتبع أو آخر مواقع محفوظة حسب الفلتر الحالي</div>`;
 
   orders.forEach((order) => {
     container.appendChild(buildTrackingCard(order));
@@ -4193,8 +4229,8 @@ function renderTracking() {
 
 function buildTrackingCard(order) {
   const tracking = getTrackingForOrder(order);
-  const lat = readNumber(tracking?.driverLat);
-  const lng = readNumber(tracking?.driverLng);
+  const lat = trackingLatitude(tracking);
+  const lng = trackingLongitude(tracking);
   const hasLocation = lat !== null && lng !== null;
   const isLive = tracking?.isTracking === true;
 
@@ -4218,7 +4254,7 @@ function buildTrackingCard(order) {
     ${infoRow("السائق", `${order.driverName || "-"} ${order.driverPhone ? " - " + order.driverPhone : ""}`)}
     ${infoRow("المسار", `${order.fromGovernorate || order.fromCity || "-"} ← ${order.toGovernorate || order.toCity || "-"}`)}
     ${infoRow("آخر تحديث", formatDateTime(tracking?.updatedAt))}
-    ${infoRow("الإحداثيات", hasLocation ? `${lat}, ${lng}` : "-")}
+    ${infoRow(hasLocation ? "آخر موقع معروف" : "الإحداثيات", hasLocation ? `${lat}, ${lng}` : "-")}
 
     <div class="tracking-map-box">
       ${
@@ -4335,8 +4371,8 @@ function showOrderDetailsModal(orderDocId) {
   const driver = findUserByNameOrPhone(order.driverName, order.driverPhone, "driver");
 
   const hasLocation = hasTrackingLocation(tracking);
-  const lat = hasLocation ? readNumber(tracking.driverLat) : null;
-  const lng = hasLocation ? readNumber(tracking.driverLng) : null;
+  const lat = hasLocation ? trackingLatitude(tracking) : null;
+  const lng = hasLocation ? trackingLongitude(tracking) : null;
 
   const ownerWhatsApp = whatsappUrl(order.ownerName, order.ownerPhone);
   const driverWhatsApp = whatsappUrl(order.driverName, order.driverPhone);
