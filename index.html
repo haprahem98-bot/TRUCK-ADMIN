@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b3a67" />
   <title>لوحة إدارة حمولتي</title>
-  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="admin.css?v=admin_sync_20260716_1" />
 </head>
 <body>
   <div id="loginBox" class="login-screen">
@@ -39,13 +39,15 @@
         <button class="menu-btn" data-section="users" onclick="showSection('users')">👥 المستخدمين</button>
         <button class="menu-btn" data-section="drivers" onclick="showSection('drivers')">🚚 السائقين</button>
         <button class="menu-btn" data-section="owners" onclick="showSection('owners')">📦 أصحاب البضاعة</button>
+        <button class="menu-btn" data-section="pickupAddresses" onclick="showSection('pickupAddresses')">📍 عناوين الاستلام</button>
 
         <div class="menu-group-label">العمليات</div>
         <button class="menu-btn" data-section="orders" onclick="showSection('orders')">📋 الطلبات</button>
         <button class="menu-btn" data-section="loads" onclick="showSection('loads')">📦 الحمولات</button>
         <button class="menu-btn" data-section="availability" onclick="showSection('availability')">🟢 التوفر</button>
         <button class="menu-btn" data-section="tracking" onclick="showSection('tracking')">📍 التتبع</button>
-        <button class="menu-btn" data-section="message" onclick="showSection('message')">📢 الرسائل</button>
+        <button class="menu-btn" data-section="conversations" onclick="showSection('conversations')">💬 المحادثات</button>
+        <button class="menu-btn" data-section="message" onclick="showSection('message')">📢 الرسائل العامة</button>
       </nav>
 
       <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
@@ -196,6 +198,7 @@
             <option value="all">كل أصحاب البضاعة</option>
             <option value="active_orders">عندهم طلبات نشطة</option>
             <option value="published_loads">عندهم حمولات منشورة</option>
+            <option value="saved_addresses">عندهم عناوين محفوظة</option>
             <option value="no_orders">بدون طلبات</option>
             <option value="verified">موثقين</option>
             <option value="pending">غير موثقين</option>
@@ -203,6 +206,23 @@
           </select>
         </div>
         <div id="ownersList" class="cards-grid"></div>
+      </section>
+
+      <section id="pickupAddressesSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>عناوين الاستلام المحفوظة</h2>
+          <p>مراجعة عناوين أصحاب البضاعة حسب المحافظة والمدينة، مع تمييز العنوان الافتراضي.</p>
+        </div>
+        <div id="pickupAddressesStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="pickupAddressesSearchInput" placeholder="بحث باسم صاحب البضاعة، الهاتف، اسم العنوان، المحافظة أو المدينة" />
+          <select id="pickupAddressesDefaultFilter">
+            <option value="all">كل العناوين</option>
+            <option value="default">الافتراضية فقط</option>
+            <option value="other">غير الافتراضية</option>
+          </select>
+        </div>
+        <div id="pickupAddressesList" class="cards-grid"></div>
       </section>
 
       <section id="ordersSection" class="section hidden">
@@ -221,10 +241,14 @@
             <option value="مقبول">مقبول</option>
             <option value="تم التحميل">تم التحميل</option>
             <option value="في الطريق">في الطريق</option>
-            <option value="تم التسليم">تم التسليم</option>
+            <option value="بانتظار تأكيد الاستلام">بانتظار تأكيد الاستلام</option>
+            <option value="مكتمل">مكتمل</option>
+            <option value="نزاع">نزاع على التسليم</option>
+            <option value="تم التسليم">تم التسليم (قديم)</option>
             <option value="مرفوض">مرفوض</option>
             <option value="ملغي">ملغي</option>
             <option value="ملغي تلقائياً">ملغي تلقائياً</option>
+            <option value="منتهي">منتهي</option>
           </select>
           <select id="ordersTypeFilter">
             <option value="all">كل أنواع الطلب</option>
@@ -247,7 +271,7 @@
           <select id="loadsStatusFilter">
             <option value="all">كل الحالات</option>
             <option value="available">متاحة</option>
-            <option value="reserved">محجوزة</option>
+            <option value="reserved">نشطة</option>
             <option value="delivered">تم التسليم</option>
             <option value="cancelled">ملغاة</option>
           </select>
@@ -292,6 +316,25 @@
         </div>
 
         <div id="trackingList" class="cards-grid"></div>
+      </section>
+
+      <section id="conversationsSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>محادثات الطلبات</h2>
+          <p>عرض المحادثات المرتبطة بالطلبات وحالة الإغلاق والإخفاء لكل طرف. حذف المحادثة يبقى قراراً مستقلاً لكل مستخدم بعد انتهاء الطلب.</p>
+        </div>
+        <div id="conversationsStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="conversationsSearchInput" placeholder="بحث برقم ORD، اسم السائق، صاحب البضاعة أو آخر رسالة" />
+          <select id="conversationsStatusFilter">
+            <option value="all">كل المحادثات</option>
+            <option value="open">المفتوحة</option>
+            <option value="closed">المغلقة</option>
+            <option value="hidden">المخفية لدى أحد الطرفين</option>
+            <option value="unread">فيها رسائل غير مقروءة</option>
+          </select>
+        </div>
+        <div id="conversationsList" class="cards-grid"></div>
       </section>
 
       <section id="messageSection" class="section hidden">
@@ -552,8 +595,8 @@
     </main>
   </div>
 
-  <script type="module" src="admin.js?v=final_complete_modular_20260701"></script>
-  <script type="module" src="modules/config/config.js?v=final_complete_modular_20260701"></script>
-  <script type="module" src="modules/config/coordinates.js?v=final_complete_modular_20260701"></script>
+  <script type="module" src="admin.js?v=admin_sync_20260716_1"></script>
+  <script type="module" src="modules/config/config.js?v=admin_sync_20260716_1"></script>
+  <script type="module" src="modules/config/coordinates.js?v=admin_sync_20260716_1"></script>
 </body>
 </html>

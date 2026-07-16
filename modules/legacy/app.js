@@ -5,6 +5,7 @@ import {
   collection,
   collectionGroup,
   query,
+  where,
   limit,
   orderBy,
   onSnapshot,
@@ -16,6 +17,8 @@ import {
   addDoc,
   deleteDoc,
   serverTimestamp,
+  arrayUnion,
+  deleteField,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -40,6 +43,8 @@ let ordersUnsubscribe = null;
 let loadsUnsubscribe = null;
 let availabilityUnsubscribe = null;
 let trackingUnsubscribe = null;
+let pickupAddressesUnsubscribe = null;
+let chatThreadsUnsubscribe = null;
 let messageUnsubscribe = null;
 let settingsUnsubscribe = null;
 let countersUnsubscribe = null;
@@ -52,6 +57,8 @@ let allOrdersCache = [];
 let allLoadsCache = [];
 let allAvailabilityCache = [];
 let allTrackingCache = [];
+let allPickupAddressesCache = [];
+let allChatThreadsCache = [];
 let allAdminLogsCache = [];
 let countersCache = {};
 let truckTypesConfig = [];
@@ -75,6 +82,10 @@ let availabilitySearchText = "";
 let availabilityStatusFilter = "active";
 let trackingSearchText = "";
 let trackingStatusFilter = "active";
+let pickupAddressesSearchText = "";
+let pickupAddressesDefaultFilter = "all";
+let conversationsSearchText = "";
+let conversationsStatusFilter = "all";
 let subscriptionsSearchText = "";
 let subscriptionsStatusFilter = "all";
 let subscriptionsRoleFilter = "all";
@@ -89,11 +100,13 @@ const pageMeta = {
   users: ["المستخدمين", "إدارة الحسابات والتوثيق والحظر"],
   drivers: ["السائقين", "متابعة السائقين والتوفر والشاحنات"],
   owners: ["أصحاب البضاعة", "متابعة أصحاب البضاعة والطلبات والحمولات"],
+  pickupAddresses: ["عناوين الاستلام", "العناوين المحفوظة لأصحاب البضاعة"],
   orders: ["الطلبات", "تحكم كامل بحالات الطلبات"],
   loads: ["الحمولات", "إدارة الحمولات المنشورة"],
   availability: ["التوفر", "إدارة توفر السائقين"],
   tracking: ["التتبع المباشر", "متابعة مواقع الشاحنات حسب الطلبات النشطة"],
-  message: ["الرسائل", "رسائل عامة وإشعارات داخلية"],
+  conversations: ["المحادثات", "متابعة محادثات الطلبات وحالة الإغلاق"],
+  message: ["الرسائل العامة", "رسائل عامة وإشعارات داخلية"],
   settings: ["الإعدادات", "إعدادات التطبيق والعدادات"],
   config: ["القوائم", "إدارة المحافظات والمدن وأنواع الشاحنات من قاعدة البيانات"],
 };
@@ -107,6 +120,9 @@ const orderStatuses = [
   "مقبول",
   "تم التحميل",
   "في الطريق",
+  "بانتظار تأكيد الاستلام",
+  "مكتمل",
+  "نزاع",
   "تم التسليم",
   "مرفوض",
   "ملغي",
@@ -215,11 +231,29 @@ function isActiveOrder(status) {
     "مقبول",
     "تم التحميل",
     "في الطريق",
+    "بانتظار تأكيد الاستلام",
+    "نزاع",
   ].includes(status);
 }
 
 function isCancelledOrder(status) {
   return status === "ملغي" || status === "ملغي تلقائياً";
+}
+
+function isCompletedOrder(status) {
+  return status === "مكتمل" || status === "تم التسليم";
+}
+
+function isClosedOrder(status) {
+  return isCompletedOrder(status) ||
+    status === "مرفوض" ||
+    status === "ملغي" ||
+    status === "ملغي تلقائياً" ||
+    status === "منتهي";
+}
+
+function isTrackableOrder(status) {
+  return status === "مقبول" || status === "تم التحميل" || status === "في الطريق";
 }
 
 function isAvailabilityActive(availability) {
@@ -261,7 +295,7 @@ function shortNumberFromId(id) {
 
 function loadStatusText(status) {
   if (status === "available") return "متاحة";
-  if (status === "reserved") return "محجوزة";
+  if (status === "reserved") return "نشطة";
   if (status === "delivered") return "تم التسليم";
   if (status === "cancelled") return "ملغاة";
   return status || "غير محدد";
@@ -269,10 +303,10 @@ function loadStatusText(status) {
 
 function badgeClassForStatus(status) {
   if (String(status || "").includes("بانتظار")) return "pending";
-  if (status === "تم التسليم" || status === "delivered") return "verified";
+  if (status === "مكتمل" || status === "تم التسليم" || status === "delivered") return "verified";
   if (status === "available") return "available";
   if (status === "reserved" || status === "مقبول" || status === "تم التحميل" || status === "في الطريق") return "active-order";
-  if (String(status || "").includes("ملغي") || status === "cancelled" || status === "مرفوض") return "blocked";
+  if (status === "نزاع" || String(status || "").includes("ملغي") || status === "cancelled" || status === "مرفوض") return "blocked";
   return "neutral";
 }
 
@@ -373,6 +407,87 @@ function googleMapsUrl(lat, lng) {
   return `https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}`;
 }
 
+function transportTypeText(item = {}) {
+  return item.transportType === "inside_governorate" ? "داخل المحافظة" : "بين المحافظات";
+}
+
+function orderRequestType(order = {}) {
+  const saved = String(order.requestType || "").trim();
+  if (saved) return saved;
+  return order.createdByRole === "driver" ? "driver_to_load" : "owner_to_driver";
+}
+
+function routeText(item = {}) {
+  const fromGovernorate = item.fromGovernorate || item.currentGovernorate || item.currentCity || "-";
+  const toGovernorate = item.toGovernorate || item.destinationGovernorate || item.destination || "-";
+  const fromArea = item.fromArea || item.fromCity || "";
+  const toArea = item.toArea || item.toCity || "";
+
+  if (item.transportType === "inside_governorate") {
+    return `${fromGovernorate} - من ${fromArea || "منطقة غير محددة"} إلى ${toArea || "منطقة غير محددة"}`;
+  }
+
+  const from = fromArea && fromArea !== fromGovernorate ? `${fromGovernorate} - ${fromArea}` : fromGovernorate;
+  const to = toArea && toArea !== toGovernorate ? `${toGovernorate} - ${toArea}` : toGovernorate;
+  return `من ${from} إلى ${to}`;
+}
+
+function driverTruckTypeText(order = {}) {
+  const saved = String(order.driverTruckType || order.truckType || order.requiredTruckType || "").trim();
+  if (saved) return saved;
+
+  const title = String(order.title || "").trim();
+  if (!title.startsWith("طلب ") || title.startsWith("طلب على حمولة")) return "غير محدد";
+  const withoutPrefix = title.slice("طلب ".length).trim();
+  for (const separator of [" داخل محافظة ", " من "]) {
+    const index = withoutPrefix.indexOf(separator);
+    if (index > 0) return withoutPrefix.slice(0, index).trim();
+  }
+  return "غير محدد";
+}
+
+function deliveryLocationForOrder(order = {}) {
+  const data = order.deliveryLocation || {};
+  const lat = readNumber(data.latitude ?? data.lat);
+  const lng = readNumber(data.longitude ?? data.lng);
+  if (lat !== null && lng !== null) {
+    return {
+      lat,
+      lng,
+      accuracy: readNumber(data.accuracy),
+      source: data.source || "saved",
+      capturedAt: data.capturedAt || order.deliveredAt || null,
+    };
+  }
+
+  const tracking = getTrackingForOrder(order);
+  if (hasTrackingLocation(tracking)) {
+    return {
+      lat: readNumber(tracking.driverLat),
+      lng: readNumber(tracking.driverLng),
+      accuracy: readNumber(tracking.accuracy),
+      source: "last_tracking",
+      capturedAt: tracking.deliveryCapturedAt || tracking.updatedAt || null,
+    };
+  }
+
+  return null;
+}
+
+function deliveryLocationSourceText(source) {
+  if (source === "fresh_gps") return "GPS وقت التسليم";
+  if (source === "last_tracking") return "آخر موقع تتبع محفوظ";
+  if (source === "unavailable") return "غير متوفر";
+  return "موقع محفوظ";
+}
+
+function completionTypeText(type) {
+  if (type === "owner_confirmed") return "أكد صاحب البضاعة";
+  if (type === "automatic_24h") return "إغلاق تلقائي بعد 24 ساعة";
+  if (type === "admin_confirmed") return "إغلاق من الإدارة";
+  return type || "-";
+}
+
 function detailRow(title, value) {
   return `
     <div class="detail-row">
@@ -452,10 +567,12 @@ function buildTimelineItem(icon, title, value, muted = false) {
 function findActiveAvailabilityForDriver(user) {
   const phone = cleanPhone(user.phone || "");
   const name = String(user.name || "").trim();
+  const uid = String(user.uid || user.docId || "").trim();
   return allAvailabilityCache.find((availability) => {
     const aPhone = cleanPhone(availability.phone || availability.driverPhone || "");
     const aName = String(availability.driverName || availability.name || "").trim();
-    return isAvailabilityActive(availability) && ((phone && aPhone && phone === aPhone) || (name && aName && name === aName));
+    const aUid = String(availability.driverUid || "").trim();
+    return isAvailabilityActive(availability) && ((uid && aUid && uid === aUid) || (phone && aPhone && phone === aPhone) || (name && aName && name === aName));
   });
 }
 
@@ -534,7 +651,7 @@ window.adminLogin = async function () {
 
 window.logout = function () {
   localStorage.removeItem("adminLoggedIn");
-  [usersUnsubscribe, ordersUnsubscribe, loadsUnsubscribe, availabilityUnsubscribe, trackingUnsubscribe, messageUnsubscribe, settingsUnsubscribe, countersUnsubscribe, adminLogsUnsubscribe, ...configUnsubscribes]
+  [usersUnsubscribe, ordersUnsubscribe, loadsUnsubscribe, availabilityUnsubscribe, trackingUnsubscribe, pickupAddressesUnsubscribe, chatThreadsUnsubscribe, messageUnsubscribe, settingsUnsubscribe, countersUnsubscribe, adminLogsUnsubscribe, ...configUnsubscribes]
     .forEach((fn) => { if (fn) fn(); });
   location.reload();
 };
@@ -707,6 +824,8 @@ function startAdmin() {
   listenLoads();
   listenAvailability();
   listenTracking();
+  listenPickupAddresses();
+  listenChatThreads();
   listenGlobalMessage();
   listenSettings();
   listenCounters();
@@ -735,6 +854,10 @@ function bindFilters() {
   $("availabilityStatusFilter")?.addEventListener("change", (e) => { availabilityStatusFilter = e.target.value; renderAvailability(); });
   $("trackingSearchInput")?.addEventListener("input", (e) => { trackingSearchText = e.target.value.trim(); renderTracking(); });
   $("trackingStatusFilter")?.addEventListener("change", (e) => { trackingStatusFilter = e.target.value; renderTracking(); });
+  $("pickupAddressesSearchInput")?.addEventListener("input", (e) => { pickupAddressesSearchText = e.target.value.trim(); renderPickupAddresses(); });
+  $("pickupAddressesDefaultFilter")?.addEventListener("change", (e) => { pickupAddressesDefaultFilter = e.target.value; renderPickupAddresses(); });
+  $("conversationsSearchInput")?.addEventListener("input", (e) => { conversationsSearchText = e.target.value.trim(); renderConversations(); });
+  $("conversationsStatusFilter")?.addEventListener("change", (e) => { conversationsStatusFilter = e.target.value; renderConversations(); });
 }
 
 function listenUsers() {
@@ -790,6 +913,33 @@ function listenTracking() {
       }));
 
     renderAll();
+    setLastUpdated();
+  });
+}
+
+function listenPickupAddresses() {
+  if (pickupAddressesUnsubscribe) return;
+  pickupAddressesUnsubscribe = onSnapshot(query(collection(db, "pickup_addresses")), (snapshot) => {
+    allPickupAddressesCache = snapshot.docs
+      .map((d) => ({ docId: d.id, ...d.data() }))
+      .sort(byCreatedDesc);
+    renderPickupAddresses();
+    renderOwners();
+    setLastUpdated();
+  });
+}
+
+function listenChatThreads() {
+  if (chatThreadsUnsubscribe) return;
+  chatThreadsUnsubscribe = onSnapshot(query(collection(db, "chat_threads"), limit(300)), (snapshot) => {
+    allChatThreadsCache = snapshot.docs
+      .map((d) => ({ docId: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ad = parseFirestoreDate(a.lastMessageAt || a.updatedAt) || new Date(0);
+        const bd = parseFirestoreDate(b.lastMessageAt || b.updatedAt) || new Date(0);
+        return bd.getTime() - ad.getTime();
+      });
+    renderConversations();
     setLastUpdated();
   });
 }
@@ -921,6 +1071,8 @@ function renderAll() {
   renderAvailability();
   renderTrackingStats();
   renderTracking();
+  renderPickupAddresses();
+  renderConversations();
   renderSubscriptions();
   renderAdminNotifications();
 }
@@ -1008,6 +1160,7 @@ function actionLabel(action) {
     subscription_stop: "إيقاف اشتراك",
     update_user: "تعديل بيانات مستخدم",
     delete_user: "حذف مستخدم",
+    delete_pickup_address: "حذف عنوان استلام",
   };
 
   return labels[action] || action || "عملية";
@@ -1057,6 +1210,10 @@ function logDetailsText(log) {
 
   if (log.action === "delete_user") {
     return `${d.name || d.targetUserName || "مستخدم"} - ${d.phone || d.targetUserPhone || "-"}`;
+  }
+
+  if (log.action === "delete_pickup_address") {
+    return `${d.ownerName || "صاحب بضاعة"} - ${d.address || "عنوان استلام"}`;
   }
 
   if (log.action === "delete_order") {
@@ -1458,17 +1615,16 @@ function renderStats() {
   const blocked = allUsersCache.filter((u) => getUserStatus(u) === "blocked").length;
   const activeOrders = allOrdersCache.filter((o) => isActiveOrder(o.status)).length;
   const waitingOrders = allOrdersCache.filter((o) => String(o.status || "").includes("بانتظار")).length;
-  const deliveredOrders = allOrdersCache.filter((o) => o.status === "تم التسليم").length;
+  const deliveredOrders = allOrdersCache.filter((o) => isCompletedOrder(o.status)).length;
   const activeDrivers = allUsersCache.filter((u) => u.role === "driver" && findActiveAvailabilityForDriver(u)).length;
   const activeLoads = allLoadsCache.filter((l) => l.status === "available" || l.status === "reserved").length;
   const availableLoads = allLoadsCache.filter((l) => l.status === "available").length;
   const liveTracking = allTrackingCache.filter((t) => isTrackingLive(t) && hasTrackingLocation(t)).length;
   const activeOrdersWithoutLocation = allOrdersCache.filter((order) => {
-    if (!isActiveOrder(order.status)) return false;
+    if (!isTrackableOrder(order.status)) return false;
     const tracking = getTrackingForOrder(order);
     return !tracking || !hasTrackingLocation(tracking);
   }).length;
-
   if ($("statsGrid")) {
     $("statsGrid").innerHTML = `
       ${buildStatCard("👥", "كل المستخدمين", totalUsers)}
@@ -1533,10 +1689,12 @@ function renderDashboardAlerts() {
   const waitingDriverOrders = allOrdersCache.filter((o) => o.status === "بانتظار موافقة السائق").length;
   const waitingOwnerOrders = allOrdersCache.filter((o) => o.status === "بانتظار موافقة صاحب البضاعة").length;
   const activeOrdersWithoutLocation = allOrdersCache.filter((order) => {
-    if (!isActiveOrder(order.status)) return false;
+    if (!isTrackableOrder(order.status)) return false;
     const tracking = getTrackingForOrder(order);
     return !tracking || !hasTrackingLocation(tracking);
   }).length;
+  const deliveryConfirmations = allOrdersCache.filter((order) => order.status === "بانتظار تأكيد الاستلام").length;
+  const deliveryDisputes = allOrdersCache.filter((order) => order.status === "نزاع").length;
   const availableLoads = allLoadsCache.filter((l) => l.status === "available").length;
   const activeAvailability = allAvailabilityCache.filter(isAvailabilityActive).length;
 
@@ -1571,6 +1729,22 @@ function renderDashboardAlerts() {
       title: "طلبات نشطة بدون موقع",
       description: "طلبات في مرحلة عمل لكن لا يوجد موقع تتبع واضح.",
       section: "tracking",
+      level: "danger",
+    },
+    {
+      count: deliveryConfirmations,
+      icon: "📦",
+      title: "بانتظار تأكيد الاستلام",
+      description: "السائق سجّل التسليم وبانتظار قرار صاحب البضاعة.",
+      section: "orders",
+      level: "warning",
+    },
+    {
+      count: deliveryDisputes,
+      icon: "⚠️",
+      title: "نزاعات على التسليم",
+      description: "طلبات أبلغ فيها صاحب البضاعة عن مشكلة وتحتاج متابعة.",
+      section: "orders",
       level: "danger",
     },
     {
@@ -1732,10 +1906,10 @@ function filteredOrdersForExport() {
   const text = ordersSearchText.toLowerCase();
 
   return allOrdersCache.filter((o) => {
-    const blob = `${orderNumberText(o)} ${o.title || ""} ${o.ownerName || ""} ${o.ownerPhone || ""} ${o.driverName || ""} ${o.driverPhone || ""} ${o.fromCity || ""} ${o.toCity || ""} ${o.fromGovernorate || ""} ${o.toGovernorate || ""} ${o.loadId || ""}`.toLowerCase();
+    const blob = `${orderNumberText(o)} ${o.title || ""} ${o.ownerName || ""} ${o.ownerPhone || ""} ${o.driverName || ""} ${o.driverPhone || ""} ${driverTruckTypeText(o)} ${routeText(o)} ${o.loadId || ""}`.toLowerCase();
     return (ordersSearchText === "" || blob.includes(text)) &&
       (ordersStatusFilter === "all" || o.status === ordersStatusFilter) &&
-      (ordersTypeFilter === "all" || o.requestType === ordersTypeFilter);
+      (ordersTypeFilter === "all" || orderRequestType(o) === ordersTypeFilter);
   }).sort(byCreatedDesc);
 }
 
@@ -1883,28 +2057,31 @@ function reportRowsForType(type) {
 
   if (type === "owners") {
     return {
-      headers: ["الاسم", "الهاتف", "الحالة", "طلبات نشطة", "حمولات منشورة"],
+      headers: ["الاسم", "الهاتف", "الحالة", "طلبات نشطة", "حمولات منشورة", "عناوين استلام"],
       rows: filteredOwnersForExport().map((u) => [
         u.name || "-",
         u.phone || "-",
         getUserStatusText(u),
         getUserOrders(u).filter((o) => isActiveOrder(o.status)).length,
         getOwnerLoads(u).length,
+        getOwnerPickupAddresses(u).length,
       ]),
     };
   }
 
   if (type === "orders") {
     return {
-      headers: ["رقم الطلب", "الحالة", "صاحب البضاعة", "السائق", "من", "إلى", "السعر", "التاريخ"],
+      headers: ["رقم الطلب", "الحالة", "نوع الطلب", "صاحب البضاعة", "السائق", "نوع الشاحنة", "المسار", "السعر", "طريقة الإكمال", "التاريخ"],
       rows: filteredOrdersForExport().map((o) => [
         orderNumberText(o),
         o.status || "-",
+        orderRequestType(o) === "driver_to_load" ? "طلب على حمولة منشورة" : "طلب بحث عن سائق",
         o.ownerName || "-",
         o.driverName || "-",
-        `${o.fromGovernorate || "-"} / ${o.fromCity || "-"}`,
-        `${o.toGovernorate || "-"} / ${o.toCity || "-"}`,
+        driverTruckTypeText(o),
+        routeText(o),
         o.price || "-",
+        completionTypeText(o.completionType),
         formatDateTime(o.createdAt),
       ]),
     };
@@ -1912,14 +2089,14 @@ function reportRowsForType(type) {
 
   if (type === "loads") {
     return {
-      headers: ["رقم الحمولة", "الحالة", "النوع", "صاحب البضاعة", "من", "إلى", "الشاحنة", "السعر", "التاريخ"],
+      headers: ["رقم الحمولة", "الحالة", "النوع", "صاحب البضاعة", "نوع النقل", "المسار", "الشاحنة", "السعر", "التاريخ"],
       rows: filteredLoadsForExport().map((l) => [
         loadNumberText(l),
         loadStatusText(l.status),
         l.loadType || "-",
         l.ownerName || "-",
-        `${l.fromGovernorate || "-"} / ${l.fromCity || "-"}`,
-        `${l.toGovernorate || "-"} / ${l.toCity || "-"}`,
+        transportTypeText(l),
+        routeText(l),
         l.requiredTruckType || "-",
         l.price || "-",
         formatDateTime(l.createdAt),
@@ -1970,7 +2147,9 @@ function buildReportSummary(type, rowsCount) {
       ["عدد الطلبات", rowsCount],
       ["بانتظار", data.filter((o) => String(o.status || "").includes("بانتظار")).length],
       ["في الطريق", data.filter((o) => o.status === "في الطريق").length],
-      ["تم التسليم", data.filter((o) => o.status === "تم التسليم").length],
+      ["بانتظار تأكيد الاستلام", data.filter((o) => o.status === "بانتظار تأكيد الاستلام").length],
+      ["مكتمل", data.filter((o) => isCompletedOrder(o.status)).length],
+      ["نزاع", data.filter((o) => o.status === "نزاع").length],
       ["ملغي", data.filter((o) => isCancelledOrder(o.status)).length],
     ];
   }
@@ -1980,7 +2159,7 @@ function buildReportSummary(type, rowsCount) {
     return [
       ["عدد الحمولات", rowsCount],
       ["متاحة", data.filter((l) => l.status === "available").length],
-      ["محجوزة", data.filter((l) => l.status === "reserved").length],
+      ["نشطة", data.filter((l) => l.status === "reserved").length],
       ["تم التسليم", data.filter((l) => l.status === "delivered").length],
       ["ملغاة", data.filter((l) => l.status === "cancelled").length],
     ];
@@ -2273,7 +2452,7 @@ function exportStage3Csv(type) {
   }
 
   if (type === "owners") {
-    headers = ["الاسم", "الهاتف", "الإيميل", "الحالة", "طلبات نشطة", "حمولات منشورة"];
+    headers = ["الاسم", "الهاتف", "الإيميل", "الحالة", "طلبات نشطة", "حمولات منشورة", "عناوين استلام"];
     rows = filteredOwnersForExport().map((u) => ({
       "الاسم": u.name || "",
       "الهاتف": u.phone || "",
@@ -2281,37 +2460,42 @@ function exportStage3Csv(type) {
       "الحالة": getUserStatusText(u),
       "طلبات نشطة": getUserOrders(u).filter((o) => isActiveOrder(o.status)).length,
       "حمولات منشورة": getOwnerLoads(u).length,
+      "عناوين استلام": getOwnerPickupAddresses(u).length,
     }));
     filename = `admin-owners-${todayFileDate()}.csv`;
   }
 
   if (type === "orders") {
-    headers = ["رقم الطلب", "الحالة", "صاحب البضاعة", "هاتف صاحب البضاعة", "السائق", "هاتف السائق", "من", "إلى", "السعر", "تاريخ الإنشاء"];
+    headers = ["رقم الطلب", "الحالة", "نوع الطلب", "صاحب البضاعة", "هاتف صاحب البضاعة", "السائق", "هاتف السائق", "نوع شاحنة السائق", "نوع النقل", "المسار", "السعر", "طريقة الإكمال", "موقع التسليم", "تاريخ الإنشاء"];
     rows = filteredOrdersForExport().map((o) => ({
       "رقم الطلب": orderNumberText(o),
       "الحالة": o.status || "",
+      "نوع الطلب": orderRequestType(o) === "driver_to_load" ? "طلب على حمولة منشورة" : "طلب بحث عن سائق",
       "صاحب البضاعة": o.ownerName || "",
       "هاتف صاحب البضاعة": o.ownerPhone || "",
       "السائق": o.driverName || "",
       "هاتف السائق": o.driverPhone || "",
-      "من": `${o.fromGovernorate || ""} / ${o.fromCity || ""}`,
-      "إلى": `${o.toGovernorate || ""} / ${o.toCity || ""}`,
+      "نوع شاحنة السائق": driverTruckTypeText(o),
+      "نوع النقل": transportTypeText(o),
+      "المسار": routeText(o),
       "السعر": o.price || "",
+      "طريقة الإكمال": completionTypeText(o.completionType),
+      "موقع التسليم": (() => { const location = deliveryLocationForOrder(o); return location ? googleMapsUrl(location.lat, location.lng) : ""; })(),
       "تاريخ الإنشاء": formatDateTime(o.createdAt),
     }));
     filename = `admin-orders-${todayFileDate()}.csv`;
   }
 
   if (type === "loads") {
-    headers = ["رقم الحمولة", "الحالة", "النوع", "صاحب البضاعة", "الهاتف", "من", "إلى", "نوع الشاحنة", "الوزن", "السعر", "تاريخ النشر"];
+    headers = ["رقم الحمولة", "الحالة", "النوع", "صاحب البضاعة", "الهاتف", "نوع النقل", "المسار", "نوع الشاحنة", "الوزن", "السعر", "تاريخ النشر"];
     rows = filteredLoadsForExport().map((l) => ({
       "رقم الحمولة": loadNumberText(l),
       "الحالة": loadStatusText(l.status),
       "النوع": l.loadType || "",
       "صاحب البضاعة": l.ownerName || "",
       "الهاتف": l.ownerPhone || "",
-      "من": `${l.fromGovernorate || ""} / ${l.fromCity || ""}`,
-      "إلى": `${l.toGovernorate || ""} / ${l.toCity || ""}`,
+      "نوع النقل": transportTypeText(l),
+      "المسار": routeText(l),
       "نوع الشاحنة": l.requiredTruckType || "",
       "الوزن": l.weight || "",
       "السعر": l.price || "",
@@ -2885,7 +3069,7 @@ function buildAdminNotifications() {
       });
     }
 
-    if (isActiveOrder(order.status)) {
+    if (isTrackableOrder(order.status)) {
       const tracking = getTrackingForOrder(order);
       if (!tracking || !hasTrackingLocation(tracking)) {
         items.push({
@@ -2902,6 +3086,40 @@ function buildAdminNotifications() {
           actionText: "فتح الطلب",
         });
       }
+    }
+
+    if (order.status === "بانتظار تأكيد الاستلام") {
+      const deadline = parseFirestoreDate(order.deliveryConfirmationDeadlineAt);
+      const expired = deadline && deadline.getTime() <= Date.now();
+      items.push({
+        id: `delivery-confirmation-${order.docId}`,
+        type: "order",
+        level: expired ? "danger" : "warning",
+        icon: "📦",
+        title: expired ? "انتهت مهلة تأكيد الاستلام" : "بانتظار تأكيد الاستلام",
+        description: `${orderNumberText(order)} - ${deadline ? `المهلة: ${formatDateTime(deadline)}` : "لا توجد مهلة مسجلة"}`,
+        date: order.deliveredAt || order.updatedAt,
+        section: "orders",
+        targetKind: "order",
+        targetId: order.docId,
+        actionText: "فتح دليل التسليم",
+      });
+    }
+
+    if (order.status === "نزاع") {
+      items.push({
+        id: `delivery-dispute-${order.docId}`,
+        type: "order",
+        level: "danger",
+        icon: "⚠️",
+        title: "نزاع على التسليم",
+        description: `${orderNumberText(order)} - ${order.deliveryIssueNote || "بدون ملاحظة"}`,
+        date: order.deliveryIssueAt || order.updatedAt,
+        section: "orders",
+        targetKind: "order",
+        targetId: order.docId,
+        actionText: "متابعة النزاع",
+      });
     }
   });
 
@@ -3944,6 +4162,7 @@ function renderOwners() {
       ${buildMiniStat("كل أصحاب البضاعة", owners.length)}
       ${buildMiniStat("لديهم طلبات نشطة", withActiveOrders)}
       ${buildMiniStat("لديهم حمولات", owners.filter((u) => getOwnerLoads(u).length > 0).length)}
+      ${buildMiniStat("لديهم عناوين", owners.filter((u) => getOwnerPickupAddresses(u).length > 0).length)}
       ${buildMiniStat("موثقين", owners.filter((u) => getUserStatus(u) === "verified").length)}
       ${buildMiniStat("محظورين", owners.filter((u) => getUserStatus(u) === "blocked").length)}
     `;
@@ -3952,11 +4171,13 @@ function renderOwners() {
   const filtered = owners.filter((owner) => {
     const orders = getUserOrders(owner);
     const loads = getOwnerLoads(owner);
+    const addresses = getOwnerPickupAddresses(owner);
     const blob = `${owner.name || ""} ${owner.phone || ""} ${owner.email || ""}`.toLowerCase();
     const matchesSearch = ownersSearchText === "" || blob.includes(text);
     let matchesFilter = true;
     if (ownersFilter === "active_orders") matchesFilter = orders.some((o) => isActiveOrder(o.status));
     if (ownersFilter === "published_loads") matchesFilter = loads.length > 0;
+    if (ownersFilter === "saved_addresses") matchesFilter = addresses.length > 0;
     if (ownersFilter === "no_orders") matchesFilter = orders.length === 0;
     if (ownersFilter === "verified") matchesFilter = getUserStatus(owner) === "verified";
     if (ownersFilter === "pending") matchesFilter = getUserStatus(owner) === "pending";
@@ -3972,13 +4193,15 @@ function buildOwnerCard(owner) {
   const card = buildUserCard(owner);
   const orders = getUserOrders(owner);
   const loads = getOwnerLoads(owner);
+  const addresses = getOwnerPickupAddresses(owner);
   const box = document.createElement("div");
   box.className = "mini-box";
   box.innerHTML = `
     ${infoRow("طلبات نشطة", orders.filter((o) => isActiveOrder(o.status)).length)}
-    ${infoRow("طلبات منتهية", orders.filter((o) => o.status === "تم التسليم").length)}
+    ${infoRow("طلبات منتهية", orders.filter((o) => isCompletedOrder(o.status)).length)}
     ${infoRow("حمولات منشورة", loads.length)}
     ${infoRow("حمولات نشطة", loads.filter((l) => l.status === "available" || l.status === "reserved").length)}
+    ${infoRow("عناوين استلام", addresses.length)}
   `;
   card.appendChild(box);
   return card;
@@ -3987,20 +4210,121 @@ function buildOwnerCard(owner) {
 function getUserOrders(user) {
   const name = String(user.name || "").trim();
   const phone = cleanPhone(user.phone || "");
+  const uid = String(user.uid || user.docId || "").trim();
   return allOrdersCache.filter((o) => {
     const ownerPhone = cleanPhone(o.ownerPhone || "");
     const driverPhone = cleanPhone(o.driverPhone || "");
-    return (name && (o.ownerName === name || o.driverName === name)) || (phone && (ownerPhone === phone || driverPhone === phone));
+    const matchesUid = uid && (String(o.ownerUid || "").trim() === uid || String(o.driverUid || "").trim() === uid);
+    return matchesUid || (phone && (ownerPhone === phone || driverPhone === phone)) || (name && (o.ownerName === name || o.driverName === name));
   });
 }
 
 function getOwnerLoads(owner) {
   const name = String(owner.name || "").trim();
   const phone = cleanPhone(owner.phone || "");
+  const uid = String(owner.uid || owner.docId || "").trim();
   return allLoadsCache.filter((l) => {
     const ownerPhone = cleanPhone(l.ownerPhone || "");
-    return (name && l.ownerName === name) || (phone && ownerPhone === phone);
+    return (uid && String(l.ownerUid || "").trim() === uid) || (phone && ownerPhone === phone) || (name && l.ownerName === name);
   });
+}
+
+function getOwnerPickupAddresses(owner) {
+  const name = String(owner.name || "").trim();
+  const phone = cleanPhone(owner.phone || "");
+  return allPickupAddressesCache.filter((address) => {
+    const addressPhone = cleanPhone(address.ownerPhone || "");
+    return (phone && addressPhone === phone) || (name && address.ownerName === name);
+  });
+}
+
+function renderPickupAddresses() {
+  const container = $("pickupAddressesList");
+  if (!container) return;
+
+  const ownersCount = new Set(allPickupAddressesCache.map((item) => cleanPhone(item.ownerPhone) || item.ownerName || item.docId)).size;
+  const defaultCount = allPickupAddressesCache.filter((item) => item.isDefault === true).length;
+  const governoratesCount = new Set(allPickupAddressesCache.map((item) => item.governorate).filter(Boolean)).size;
+
+  if ($("pickupAddressesStats")) {
+    $("pickupAddressesStats").innerHTML = `
+      ${buildMiniStat("كل العناوين", allPickupAddressesCache.length)}
+      ${buildMiniStat("أصحاب البضاعة", ownersCount)}
+      ${buildMiniStat("عناوين افتراضية", defaultCount)}
+      ${buildMiniStat("محافظات", governoratesCount)}
+    `;
+  }
+
+  const keyword = pickupAddressesSearchText.toLowerCase();
+  const filtered = allPickupAddressesCache.filter((address) => {
+    const blob = `${address.ownerName || ""} ${address.ownerPhone || ""} ${address.label || ""} ${address.governorate || ""} ${address.city || ""}`.toLowerCase();
+    const defaultMatch = pickupAddressesDefaultFilter === "all" ||
+      (pickupAddressesDefaultFilter === "default" && address.isDefault === true) ||
+      (pickupAddressesDefaultFilter === "other" && address.isDefault !== true);
+    return (!keyword || blob.includes(keyword)) && defaultMatch;
+  });
+
+  container.innerHTML = filtered.length ? "" : `<div class="empty-box">لا توجد عناوين حسب الفلتر الحالي</div>`;
+  filtered.forEach((address) => container.appendChild(buildPickupAddressCard(address)));
+}
+
+function buildPickupAddressCard(address) {
+  const card = document.createElement("div");
+  card.className = "data-card pickup-address-card";
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="avatar">📍</div>
+      <div class="card-title">
+        <h3>${escapeHtml(address.label || `${address.governorate || "-"} - ${address.city || "-"}`)}</h3>
+        <p>${escapeHtml(address.ownerName || "صاحب بضاعة غير محدد")}</p>
+      </div>
+      <span class="badge ${address.isDefault === true ? "verified" : "neutral"}">${address.isDefault === true ? "افتراضي" : "محفوظ"}</span>
+    </div>
+    ${infoRow("صاحب البضاعة", address.ownerName)}
+    ${infoRow("الهاتف", address.ownerPhone)}
+    ${infoRow("المحافظة", address.governorate)}
+    ${infoRow("المدينة / المنطقة", address.city)}
+    ${infoRow("تاريخ الإضافة", formatDateTime(address.createdAt))}
+    <div class="actions">
+      <button class="whatsapp-btn" data-action="contact-owner">واتساب</button>
+      <button class="delete-btn" data-action="delete-address">حذف العنوان</button>
+    </div>
+  `;
+
+  card.querySelector('[data-action="contact-owner"]').onclick = () => {
+    const url = whatsappUrl(address.ownerName, address.ownerPhone);
+    if (!url) return alert("لا يوجد رقم هاتف");
+    window.open(url, "_blank");
+  };
+  card.querySelector('[data-action="delete-address"]').onclick = () => deletePickupAddress(address);
+  return card;
+}
+
+async function deletePickupAddress(address) {
+  if (!confirm(`حذف عنوان ${address.label || address.city || "الاستلام"}؟`)) return;
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "pickup_addresses", address.docId));
+
+  if (address.isDefault === true && String(address.ownerPhone || "").trim()) {
+    const remaining = await getDocs(query(
+      collection(db, "pickup_addresses"),
+      where("ownerPhone", "==", String(address.ownerPhone).trim()),
+      limit(50),
+    ));
+    const replacement = remaining.docs.find((item) => item.id !== address.docId);
+    if (replacement) {
+      batch.set(replacement.ref, { isDefault: true, updatedAt: serverTimestamp() }, { merge: true });
+    }
+  }
+
+  await batch.commit();
+  await addAdminLog("delete_pickup_address", {
+    docId: address.docId,
+    ownerName: address.ownerName || "",
+    ownerPhone: address.ownerPhone || "",
+    address: `${address.governorate || ""} - ${address.city || ""}`,
+  });
+  toast("تم حذف عنوان الاستلام");
 }
 
 function renderOrdersStats() {
@@ -4010,7 +4334,9 @@ function renderOrdersStats() {
     ${buildMiniStat("بانتظار", allOrdersCache.filter((o) => String(o.status || "").includes("بانتظار")).length)}
     ${buildMiniStat("مقبول", allOrdersCache.filter((o) => o.status === "مقبول").length)}
     ${buildMiniStat("في الطريق", allOrdersCache.filter((o) => o.status === "في الطريق").length)}
-    ${buildMiniStat("تم التسليم", allOrdersCache.filter((o) => o.status === "تم التسليم").length)}
+    ${buildMiniStat("بانتظار تأكيد", allOrdersCache.filter((o) => o.status === "بانتظار تأكيد الاستلام").length)}
+    ${buildMiniStat("مكتمل", allOrdersCache.filter((o) => isCompletedOrder(o.status)).length)}
+    ${buildMiniStat("نزاع", allOrdersCache.filter((o) => o.status === "نزاع").length)}
     ${buildMiniStat("ملغي", allOrdersCache.filter((o) => isCancelledOrder(o.status)).length)}
   `;
 }
@@ -4040,10 +4366,10 @@ function renderOrders() {
   ensureStage3Toolbar("orders", "ordersList", "أدوات الطلبات");
   const text = ordersSearchText.toLowerCase();
   const orders = allOrdersCache.filter((o) => {
-    const blob = `${orderNumberText(o)} ${o.title || ""} ${o.ownerName || ""} ${o.ownerPhone || ""} ${o.driverName || ""} ${o.driverPhone || ""} ${o.fromCity || ""} ${o.toCity || ""} ${o.fromGovernorate || ""} ${o.toGovernorate || ""} ${o.loadId || ""}`.toLowerCase();
+    const blob = `${orderNumberText(o)} ${o.title || ""} ${o.ownerName || ""} ${o.ownerPhone || ""} ${o.driverName || ""} ${o.driverPhone || ""} ${driverTruckTypeText(o)} ${routeText(o)} ${o.loadId || ""}`.toLowerCase();
     return (ordersSearchText === "" || blob.includes(text)) &&
       (ordersStatusFilter === "all" || o.status === ordersStatusFilter) &&
-      (ordersTypeFilter === "all" || o.requestType === ordersTypeFilter);
+      (ordersTypeFilter === "all" || orderRequestType(o) === ordersTypeFilter);
   }).sort(byCreatedDesc);
   updateStage3Count("orders", orders.length, allOrdersCache.length);
   container.innerHTML = orders.length ? "" : `<div class="empty-box">لا توجد طلبات حسب الفلتر</div>`;
@@ -4065,12 +4391,14 @@ function buildOrderCard(order, showActions = true) {
     </div>
     ${infoRow("صاحب البضاعة", `${order.ownerName || "-"} ${order.ownerPhone ? " - " + order.ownerPhone : ""}`)}
     ${infoRow("السائق", `${order.driverName || "-"} ${order.driverPhone ? " - " + order.driverPhone : ""}`)}
-    ${infoRow("نوع سيارة السائق", order.driverTruckType)}
-    ${infoRow("المسار", `${order.fromGovernorate || order.fromCity || "-"} ← ${order.toGovernorate || order.toCity || "-"}`)}
+    ${infoRow("نوع سيارة السائق", driverTruckTypeText(order))}
+    ${infoRow("نوع النقل", transportTypeText(order))}
+    ${infoRow("المسار", routeText(order))}
     ${infoRow("السعر", order.price)}
-    ${infoRow("نوع الطلب", order.requestType === "driver_to_load" ? "طلب على حمولة منشورة" : "طلب بحث عن سائق")}
+    ${infoRow("نوع الطلب", orderRequestType(order) === "driver_to_load" ? "طلب على حمولة منشورة" : "طلب بحث عن سائق")}
     ${infoRow("رقم الحمولة", order.loadId || "-")}
     ${infoRow("تاريخ الإنشاء", formatDateTime(order.createdAt))}
+    ${infoRow("حالة المحادثة", order.chatClosed === true || isClosedOrder(order.status) ? "مغلقة" : "مفتوحة")}
     ${(() => {
       const tracking = getTrackingForOrder(order);
       return tracking ? infoRow("التتبع", hasTrackingLocation(tracking) ? (isTrackingLive(tracking) ? "مباشر الآن" : "آخر موقع محفوظ") : "بانتظار الموقع") : "";
@@ -4095,7 +4423,7 @@ function renderLoadsStats() {
   $("loadsStats").innerHTML = `
     ${buildMiniStat("كل الحمولات", allLoadsCache.length)}
     ${buildMiniStat("متاحة", allLoadsCache.filter((l) => l.status === "available").length)}
-    ${buildMiniStat("محجوزة", allLoadsCache.filter((l) => l.status === "reserved").length)}
+    ${buildMiniStat("نشطة", allLoadsCache.filter((l) => l.status === "reserved").length)}
     ${buildMiniStat("تم التسليم", allLoadsCache.filter((l) => l.status === "delivered").length)}
     ${buildMiniStat("ملغاة", allLoadsCache.filter((l) => l.status === "cancelled").length)}
   `;
@@ -4104,7 +4432,7 @@ function renderLoadsStats() {
 function renderLoadsStatusChips() {
   const container = $("loadsStatusChips");
   if (!container) return;
-  const chips = [["all", "كل الحمولات"], ["available", "متاحة"], ["reserved", "محجوزة"], ["delivered", "تم التسليم"], ["cancelled", "ملغاة"]];
+  const chips = [["all", "كل الحمولات"], ["available", "متاحة"], ["reserved", "نشطة"], ["delivered", "تم التسليم"], ["cancelled", "ملغاة"]];
   container.innerHTML = "";
   chips.forEach(([value, label]) => {
     const btn = document.createElement("button");
@@ -4143,8 +4471,8 @@ function buildLoadCard(load, showActions = true) {
       <span class="badge ${badgeClassForStatus(load.status)}">${escapeHtml(loadStatusText(load.status))}</span>
     </div>
     ${infoRow("صاحب البضاعة", `${load.ownerName || "-"} ${load.ownerPhone ? " - " + load.ownerPhone : ""}`)}
-    ${infoRow("المسار", `${load.fromGovernorate || load.fromCity || "-"} ← ${load.toGovernorate || load.toCity || "-"}`)}
-    ${infoRow("المناطق", `${load.fromCity || "-"} ← ${load.toCity || "-"}`)}
+    ${infoRow("نوع النقل", transportTypeText(load))}
+    ${infoRow("المسار", routeText(load))}
     ${infoRow("نوع الشاحنة", load.requiredTruckType)}
     ${infoRow("الوزن", load.weight)}
     ${infoRow("السعر", load.price)}
@@ -4169,10 +4497,14 @@ function buildLoadCard(load, showActions = true) {
 function renderTrackingStats() {
   if (!$("trackingStats")) return;
 
+<<<<<<< HEAD
   const trackableOrders = allOrdersCache.filter((o) => {
     const tracking = getTrackingForOrder(o);
     return ["مقبول", "تم التحميل", "في الطريق"].includes(o.status) || hasTrackingLocation(tracking);
   });
+=======
+  const trackableOrders = allOrdersCache.filter((o) => isTrackableOrder(o.status));
+>>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   const knownLocations = trackableOrders.filter((order) => {
     return hasTrackingLocation(getTrackingForOrder(order));
@@ -4197,10 +4529,14 @@ function renderTracking() {
 
   const text = trackingSearchText.toLowerCase();
 
+<<<<<<< HEAD
   let orders = allOrdersCache.filter((order) => {
     const tracking = getTrackingForOrder(order);
     return ["مقبول", "تم التحميل", "في الطريق"].includes(order.status) || hasTrackingLocation(tracking);
   });
+=======
+  let orders = allOrdersCache.filter((order) => isTrackableOrder(order.status));
+>>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   orders = orders.filter((order) => {
     const tracking = getTrackingForOrder(order);
@@ -4285,11 +4621,142 @@ function buildTrackingCard(order) {
     if ($("ordersSearchInput")) $("ordersSearchInput").value = ordersSearchText;
     ordersStatusFilter = "all";
     if ($("ordersStatusFilter")) $("ordersStatusFilter").value = "all";
-    showSection("orders");
+    window.showSection("orders");
     renderOrders();
   };
 
   return card;
+}
+
+function orderForThread(thread) {
+  const orderId = String(thread.orderId || thread.docId || "").trim();
+  return allOrdersCache.find((order) => String(order.id || order.docId || "").trim() === orderId) || null;
+}
+
+function conversationIsClosed(thread, order) {
+  return order?.chatClosed === true || isClosedOrder(order?.status) || thread.chatClosed === true;
+}
+
+function conversationUnreadCount(thread) {
+  return Number(thread.unreadForOwner || 0) + Number(thread.unreadForDriver || 0);
+}
+
+function renderConversations() {
+  const container = $("conversationsList");
+  if (!container) return;
+
+  const closedCount = allChatThreadsCache.filter((thread) => conversationIsClosed(thread, orderForThread(thread))).length;
+  const hiddenCount = allChatThreadsCache.filter((thread) => thread.hiddenForOwner === true || thread.hiddenForDriver === true).length;
+  const unreadCount = allChatThreadsCache.reduce((sum, thread) => sum + conversationUnreadCount(thread), 0);
+
+  if ($("conversationsStats")) {
+    $("conversationsStats").innerHTML = `
+      ${buildMiniStat("كل المحادثات", allChatThreadsCache.length)}
+      ${buildMiniStat("مفتوحة", allChatThreadsCache.length - closedCount)}
+      ${buildMiniStat("مغلقة", closedCount)}
+      ${buildMiniStat("غير مقروءة", unreadCount)}
+      ${buildMiniStat("مخفية لدى طرف", hiddenCount)}
+    `;
+  }
+
+  const keyword = conversationsSearchText.toLowerCase();
+  const filtered = allChatThreadsCache.filter((thread) => {
+    const order = orderForThread(thread);
+    const closed = conversationIsClosed(thread, order);
+    const hidden = thread.hiddenForOwner === true || thread.hiddenForDriver === true;
+    const unread = conversationUnreadCount(thread) > 0;
+    const blob = `${order ? orderNumberText(order) : thread.orderId || thread.docId || ""} ${thread.ownerName || order?.ownerName || ""} ${thread.driverName || order?.driverName || ""} ${thread.lastMessage || ""}`.toLowerCase();
+    const statusMatch = conversationsStatusFilter === "all" ||
+      (conversationsStatusFilter === "open" && !closed) ||
+      (conversationsStatusFilter === "closed" && closed) ||
+      (conversationsStatusFilter === "hidden" && hidden) ||
+      (conversationsStatusFilter === "unread" && unread);
+    return (!keyword || blob.includes(keyword)) && statusMatch;
+  });
+
+  container.innerHTML = filtered.length ? "" : `<div class="empty-box">لا توجد محادثات حسب الفلتر الحالي</div>`;
+  filtered.forEach((thread) => container.appendChild(buildConversationCard(thread)));
+}
+
+function buildConversationCard(thread) {
+  const order = orderForThread(thread);
+  const closed = conversationIsClosed(thread, order);
+  const unread = conversationUnreadCount(thread);
+  const card = document.createElement("div");
+  card.className = "data-card conversation-card";
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="avatar">💬</div>
+      <div class="card-title">
+        <h3>${escapeHtml(order ? orderNumberText(order) : thread.orderId || thread.docId || "محادثة")}</h3>
+        <p>${escapeHtml(thread.lastMessage || "لا توجد رسالة أخيرة")}</p>
+      </div>
+      <span class="badge ${closed ? "neutral" : "available"}">${closed ? "مغلقة" : "مفتوحة"}</span>
+    </div>
+    ${infoRow("صاحب البضاعة", thread.ownerName || order?.ownerName)}
+    ${infoRow("السائق", thread.driverName || order?.driverName)}
+    ${infoRow("حالة الطلب", order?.status || "غير موجود")}
+    ${infoRow("غير مقروء لصاحب البضاعة", Number(thread.unreadForOwner || 0))}
+    ${infoRow("غير مقروء للسائق", Number(thread.unreadForDriver || 0))}
+    ${infoRow("إخفاء صاحب البضاعة", thread.hiddenForOwner === true ? "نعم" : "لا")}
+    ${infoRow("إخفاء السائق", thread.hiddenForDriver === true ? "نعم" : "لا")}
+    ${infoRow("آخر رسالة", formatDateTime(thread.lastMessageAt || thread.updatedAt))}
+    <div class="actions single">
+      <button class="details-btn" data-action="open-conversation">عرض الرسائل${unread ? ` (${unread})` : ""}</button>
+      ${order ? `<button class="update-btn" data-action="open-related-order">فتح الطلب</button>` : ""}
+    </div>
+  `;
+  card.querySelector('[data-action="open-conversation"]').onclick = () => showConversationDetails(thread);
+  card.querySelector('[data-action="open-related-order"]')?.addEventListener("click", () => showOrderDetailsModal(order.docId));
+  return card;
+}
+
+async function showConversationDetails(thread) {
+  const orderId = String(thread.orderId || thread.docId || "").trim();
+  if (!orderId) return alert("رقم الطلب غير موجود");
+
+  closeModal();
+  const modal = document.createElement("div");
+  modal.id = "adminModal";
+  modal.className = "admin-modal-overlay";
+  modal.innerHTML = `
+    <div class="admin-modal wide-modal details-modal">
+      <div class="admin-modal-header details-modal-header">
+        <div><h2>محادثة الطلب</h2><p>${escapeHtml(orderId)}</p></div>
+        <button class="modal-close-btn" data-action="close">×</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="chat-audit-note">هذه الشاشة للمتابعة فقط. إخفاء المحادثة المنتهية يتم بشكل مستقل من حساب كل طرف.</div>
+        <div id="adminConversationMessages" class="admin-conversation-messages"><div class="empty-box">جاري تحميل الرسائل...</div></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('[data-action="close"]').onclick = closeModal;
+  modal.onclick = (event) => { if (event.target === modal) closeModal(); };
+
+  try {
+    const snapshot = await getDocs(query(collection(db, "messages"), where("orderId", "==", orderId), limit(200)));
+    const messages = snapshot.docs
+      .map((item) => ({ docId: item.id, ...item.data() }))
+      .sort((a, b) => {
+        const ad = parseFirestoreDate(a.createdAt || a.clientCreatedAt) || new Date(0);
+        const bd = parseFirestoreDate(b.createdAt || b.clientCreatedAt) || new Date(0);
+        return ad.getTime() - bd.getTime();
+      });
+    const box = $("adminConversationMessages");
+    if (!box) return;
+    box.innerHTML = messages.length ? messages.map((message) => `
+      <div class="admin-chat-message ${message.senderRole === "driver" ? "driver" : "owner"}">
+        <div><b>${escapeHtml(message.senderName || (message.senderRole === "driver" ? "السائق" : "صاحب البضاعة"))}</b><span>${escapeHtml(message.senderRole === "driver" ? "سائق" : "صاحب بضاعة")}</span></div>
+        <p>${escapeHtml(message.text || "")}</p>
+        <small>${escapeHtml(formatDateTime(message.createdAt || message.clientCreatedAt))} • ${message.isRead === true ? "مقروءة" : "غير مقروءة"}</small>
+      </div>
+    `).join("") : `<div class="empty-box">لا توجد رسائل محفوظة لهذه المحادثة</div>`;
+  } catch (error) {
+    console.error("Conversation messages error:", error);
+    if ($("adminConversationMessages")) $("adminConversationMessages").innerHTML = `<div class="empty-box">تعذر تحميل الرسائل</div>`;
+  }
 }
 
 function renderAvailabilityStats() {
@@ -4330,8 +4797,8 @@ function buildAvailabilityCard(a) {
       <span class="badge ${active ? "available" : "neutral"}">${active ? "متاح" : "غير متاح"}</span>
     </div>
     ${infoRow("نوع الشاحنة", a.truckType)}
-    ${infoRow("من", availabilityFrom(a))}
-    ${infoRow("إلى", availabilityTo(a))}
+    ${infoRow("نوع النقل", transportTypeText(a))}
+    ${infoRow("المسار", routeText(a))}
     ${infoRow("تاريخ الانطلاق", a.date)}
     ${infoRow("ينتهي التوفر", formatDateTime(a.availableUntil))}
     ${infoRow("ملاحظة", a.notes)}
@@ -4371,8 +4838,14 @@ function showOrderDetailsModal(orderDocId) {
   const driver = findUserByNameOrPhone(order.driverName, order.driverPhone, "driver");
 
   const hasLocation = hasTrackingLocation(tracking);
+<<<<<<< HEAD
   const lat = hasLocation ? trackingLatitude(tracking) : null;
   const lng = hasLocation ? trackingLongitude(tracking) : null;
+=======
+  const lat = hasLocation ? readNumber(tracking.driverLat) : null;
+  const lng = hasLocation ? readNumber(tracking.driverLng) : null;
+  const deliveryLocation = deliveryLocationForOrder(order);
+>>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   const ownerWhatsApp = whatsappUrl(order.ownerName, order.ownerPhone);
   const driverWhatsApp = whatsappUrl(order.driverName, order.driverPhone);
@@ -4393,9 +4866,10 @@ function showOrderDetailsModal(orderDocId) {
       <div class="admin-modal-body">
         <div class="details-summary-row">
           <div class="summary-pill"><span>الحالة</span><b>${escapeHtml(order.status || "غير محدد")}</b></div>
-          <div class="summary-pill"><span>نوع الطلب</span><b>${escapeHtml(order.requestType === "driver_to_load" ? "طلب على حمولة" : "بحث عن سائق")}</b></div>
+          <div class="summary-pill"><span>نوع الطلب</span><b>${escapeHtml(orderRequestType(order) === "driver_to_load" ? "طلب على حمولة" : "بحث عن سائق")}</b></div>
           <div class="summary-pill"><span>السعر</span><b>${escapeHtml(order.price || "-")}</b></div>
           <div class="summary-pill"><span>التتبع</span><b>${escapeHtml(hasLocation ? (isTrackingLive(tracking) ? "مباشر الآن" : "آخر موقع محفوظ") : "لا يوجد موقع")}</b></div>
+          <div class="summary-pill"><span>المحادثة</span><b>${order.chatClosed === true || isClosedOrder(order.status) ? "مغلقة" : "مفتوحة"}</b></div>
         </div>
 
         <div class="details-grid">
@@ -4411,15 +4885,15 @@ function showOrderDetailsModal(orderDocId) {
             <h3>السائق</h3>
             ${detailRow("الاسم", order.driverName)}
             ${detailRow("الهاتف", order.driverPhone)}
-            ${detailRow("نوع الشاحنة", order.driverTruckType)}
+            ${detailRow("نوع الشاحنة", driverTruckTypeText(order))}
             ${detailRow("حالة الحساب", driver ? getUserStatusText(driver) : "غير مربوط بحساب")}
             ${driverWhatsApp ? detailLink("واتساب", "فتح محادثة", driverWhatsApp) : detailRow("واتساب", "لا يوجد رقم")}
           </div>
 
           <div class="details-card">
             <h3>المسار والحمولة</h3>
-            ${detailRow("من", `${order.fromGovernorate || "-"} / ${order.fromCity || "-"}`)}
-            ${detailRow("إلى", `${order.toGovernorate || "-"} / ${order.toCity || "-"}`)}
+            ${detailRow("نوع النقل", transportTypeText(order))}
+            ${detailRow("المسار", routeText(order))}
             ${detailRow("نوع الحمولة", order.loadType || load?.loadType)}
             ${detailRow("وزن الحمولة", order.weight || load?.weight)}
             ${detailRow("رقم الحمولة", load ? loadNumberText(load) : (order.loadId || "-"))}
@@ -4432,6 +4906,26 @@ function showOrderDetailsModal(orderDocId) {
             ${detailRow("الإحداثيات", hasLocation ? `${lat}, ${lng}` : "-")}
             ${hasLocation ? detailLink("الخريطة", "فتح على Google Maps", googleMapsUrl(lat, lng)) : detailRow("الخريطة", "لا يوجد موقع")}
           </div>
+
+          <div class="details-card delivery-proof-card">
+            <h3>دليل التسليم</h3>
+            ${detailRow("أفاد السائق بالتسليم", formatDateTime(order.deliveredAt))}
+            ${detailRow("مهلة تأكيد الاستلام", formatDateTime(order.deliveryConfirmationDeadlineAt))}
+            ${detailRow("تأكيد صاحب البضاعة", formatDateTime(order.ownerConfirmedAt))}
+            ${detailRow("طريقة الإكمال", completionTypeText(order.completionType))}
+            ${detailRow("مصدر الموقع", deliveryLocation ? deliveryLocationSourceText(deliveryLocation.source) : "غير متوفر")}
+            ${detailRow("وقت تسجيل الموقع", deliveryLocation ? formatDateTime(deliveryLocation.capturedAt) : "-")}
+            ${detailRow("الإحداثيات", deliveryLocation ? `${deliveryLocation.lat}, ${deliveryLocation.lng}` : "-")}
+            ${deliveryLocation ? detailLink("موقع التسليم", "فتح على الخرائط", googleMapsUrl(deliveryLocation.lat, deliveryLocation.lng)) : detailRow("موقع التسليم", "غير متوفر")}
+          </div>
+
+          ${order.status === "نزاع" || order.deliveryIssueAt ? `
+            <div class="details-card dispute-card">
+              <h3>مشكلة التسليم</h3>
+              ${detailRow("وقت الإبلاغ", formatDateTime(order.deliveryIssueAt))}
+              ${detailRow("ملاحظة صاحب البضاعة", order.deliveryIssueNote || "بدون ملاحظة")}
+            </div>
+          ` : ""}
         </div>
 
         <div class="details-card full-width">
@@ -4440,8 +4934,12 @@ function showOrderDetailsModal(orderDocId) {
             ${buildTimelineItem("🟡", "إنشاء الطلب", formatDateTime(order.createdAt))}
             ${buildTimelineItem("✅", "قبول الطلب", formatDateTime(order.acceptedAt), !order.acceptedAt)}
             ${buildTimelineItem("📦", "تم التحميل", formatDateTime(order.loadedAt), !order.loadedAt)}
-            ${buildTimelineItem("🚚", "في الطريق", order.status === "في الطريق" ? "نشط حالياً" : "-", order.status !== "في الطريق")}
-            ${buildTimelineItem("🏁", "تم التسليم", formatDateTime(order.deliveredAt), !order.deliveredAt)}
+            ${buildTimelineItem("🚚", "في الطريق", formatDateTime(order.onTheWayAt), !order.onTheWayAt)}
+            ${buildTimelineItem("🏁", "أفاد السائق بالتسليم", formatDateTime(order.deliveredAt), !order.deliveredAt)}
+            ${order.deliveryIssueAt ? buildTimelineItem("⚠️", "تم تسجيل نزاع", formatDateTime(order.deliveryIssueAt)) : ""}
+            ${order.ownerConfirmedAt ? buildTimelineItem("✅", "أكد صاحب البضاعة الاستلام", formatDateTime(order.ownerConfirmedAt)) : ""}
+            ${order.autoCompletedAt ? buildTimelineItem("⏱️", "إغلاق تلقائي بعد 24 ساعة", formatDateTime(order.autoCompletedAt)) : ""}
+            ${order.completedAt && !order.ownerConfirmedAt && !order.autoCompletedAt ? buildTimelineItem("✅", "اكتمل الطلب", formatDateTime(order.completedAt)) : ""}
           </div>
         </div>
 
@@ -4450,6 +4948,7 @@ function showOrderDetailsModal(orderDocId) {
           ${driver ? `<button class="manage-btn" data-action="manage-driver">إدارة السائق</button>` : ""}
           ${load ? `<button class="details-btn" data-action="open-load">تفاصيل الحمولة</button>` : ""}
           ${hasLocation ? `<button class="update-btn" data-action="open-map">فتح الخريطة</button>` : ""}
+          ${deliveryLocation ? `<button class="success-btn" data-action="open-delivery-map">موقع التسليم</button>` : ""}
         </div>
       </div>
     </div>
@@ -4462,6 +4961,7 @@ function showOrderDetailsModal(orderDocId) {
   modal.querySelector('[data-action="manage-driver"]')?.addEventListener("click", () => showManageUserModal(driver.docId, driver));
   modal.querySelector('[data-action="open-load"]')?.addEventListener("click", () => showLoadDetailsModal(load.docId));
   modal.querySelector('[data-action="open-map"]')?.addEventListener("click", () => window.open(googleMapsUrl(lat, lng), "_blank"));
+  modal.querySelector('[data-action="open-delivery-map"]')?.addEventListener("click", () => window.open(googleMapsUrl(deliveryLocation.lat, deliveryLocation.lng), "_blank"));
 }
 
 function showLoadDetailsModal(loadDocId) {
@@ -4475,7 +4975,7 @@ function showLoadDetailsModal(loadDocId) {
 
   const owner = findUserByNameOrPhone(load.ownerName, load.ownerPhone, "owner");
   const orders = getOrdersForLoad(load);
-  const acceptedOrder = orders.find((order) => ["مقبول", "تم التحميل", "في الطريق", "تم التسليم"].includes(order.status));
+  const acceptedOrder = orders.find((order) => isActiveOrder(order.status) || isCompletedOrder(order.status));
   const selectedDriver = findUserByNameOrPhone(load.selectedDriverName || acceptedOrder?.driverName, load.selectedDriverPhone || acceptedOrder?.driverPhone, "driver");
   const ownerWhatsApp = whatsappUrl(load.ownerName, load.ownerPhone);
   const driverWhatsApp = whatsappUrl(load.selectedDriverName || acceptedOrder?.driverName, load.selectedDriverPhone || acceptedOrder?.driverPhone);
@@ -4520,16 +5020,16 @@ function showLoadDetailsModal(loadDocId) {
 
           <div class="details-card">
             <h3>المسار</h3>
-            ${detailRow("من", `${load.fromGovernorate || "-"} / ${load.fromCity || "-"}`)}
-            ${detailRow("إلى", `${load.toGovernorate || "-"} / ${load.toCity || "-"}`)}
-            ${detailRow("تاريخ التحميل", formatDateTime(load.pickupDate || load.date || load.createdAt))}
+            ${detailRow("نوع النقل", transportTypeText(load))}
+            ${detailRow("المسار", routeText(load))}
+            ${detailRow("موعد التحميل", load.date || "-")}
             ${detailRow("تاريخ النشر", formatDateTime(load.createdAt))}
           </div>
 
           <div class="details-card">
             <h3>تفاصيل البضاعة</h3>
             ${detailRow("نوع الحمولة", load.loadType)}
-            ${detailRow("ملاحظات", load.note || load.description)}
+            ${detailRow("ملاحظات", load.notes || load.note || load.description)}
             ${detailRow("رقم الحمولة", loadNumberText(load))}
             ${detailRow("عدد الطلبات عليها", orders.length)}
           </div>
@@ -4676,7 +5176,7 @@ async function showUserAdminLogsModal(user) {
 
 function showManageUserModal(docId, user) {
 
-  window.currentManageUserId = (typeof docId !== "undefined" ? docId : "") || (typeof user !== "undefined" ? user?.docId : "") || (typeof id !== "undefined" ? id : "") || (typeof userId !== "undefined" ? userId : "") || "";
+  window.currentManageUserId = docId || user?.docId || "";
   window.currentSubscriptionUserId = window.currentManageUserId;
   closeModal();
   const modal = document.createElement("div");
@@ -4916,7 +5416,7 @@ function userAlreadyHadFreeTrial(user = {}) {
 
 function userHasActiveOrTrialSubscription(user = {}) {
   const status = String(user.subscriptionStatus || "");
-  return (status === "trial" || status === "active") && !subscriptionIsExpired(user);
+  return (status === "trial" || status === "active") && isUserSubscriptionActive(user);
 }
 
 async function grantFreeTrialAfterVerification(docId, user = {}) {
@@ -5055,34 +5555,349 @@ function openWhatsApp(user) {
   window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
 }
 
-async function updateOrderStatus(order, status) {
-  if (!confirm(`تغيير حالة الطلب ${orderNumberText(order)} إلى: ${status} ؟`)) return;
-  const oldStatus = order.status || "";
-  await updateDoc(doc(db, "orders", order.docId), { status, updatedAt: serverTimestamp() });
-  if (order.loadId && order.requestType === "driver_to_load") {
-    if (status === "تم التسليم") {
-      await setDoc(doc(db, "loads", order.loadId), { status: "delivered", deliveredAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-    }
-    if (status === "مقبول") {
-      await setDoc(doc(db, "loads", order.loadId), { status: "reserved", selectedDriverName: order.driverName || "", selectedDriverPhone: order.driverPhone || "", updatedAt: serverTimestamp() }, { merge: true });
-    }
-    if (status === "ملغي" || status === "مرفوض") {
-      await setDoc(doc(db, "loads", order.loadId), { status: "available", selectedDriverName: "", selectedDriverPhone: "", updatedAt: serverTimestamp() }, { merge: true });
-    }
-  }
-  await addAdminLog("update_order_status", {
-    docId: order.docId,
-    orderNumber: orderNumberText(order),
-    oldStatus,
-    newStatus: status,
-    ownerName: order.ownerName || "",
-    driverName: order.driverName || "",
+function adminSafeDocId(value) {
+  const normalized = String(value || "").trim().replaceAll("/", "_");
+  if (!normalized) return "";
+  return normalized.length <= 180 ? normalized : normalized.slice(0, 180);
+}
+
+function adminDriverLockId(order) {
+  const phone = cleanPhone(order.driverPhone || "");
+  if (phone) return adminSafeDocId(`phone_${phone}`);
+  const uid = String(order.driverUid || "").trim();
+  if (uid) return adminSafeDocId(`uid_${uid}`);
+  const name = String(order.driverName || "").trim();
+  return name ? adminSafeDocId(`name_${name}`) : "";
+}
+
+function adminLoadRequestId(order) {
+  return adminSafeDocId(String(order.driverPhone || order.driverName || "").trim());
+}
+
+function statusNotificationBody(order, status) {
+  if (status === "بانتظار تأكيد الاستلام") return `${orderNumberText(order)}: أفاد السائق بتسليم البضاعة وبانتظار تأكيد صاحب البضاعة.`;
+  if (status === "مكتمل" || status === "تم التسليم") return `${orderNumberText(order)}: اكتمل الطلب وتم إغلاق الرحلة.`;
+  if (status === "نزاع") return `${orderNumberText(order)}: تم تسجيل مشكلة على تسليم الطلب وتحتاج للمتابعة.`;
+  return `${orderNumberText(order)}: أصبحت حالة الطلب ${status}.`;
+}
+
+function addOrderStatusNotificationToBatch(batch, order, status, role) {
+  const isDriver = role === "driver";
+  const userName = String(isDriver ? order.driverName || "" : order.ownerName || "").trim();
+  const userUid = String(isDriver ? order.driverUid || "" : order.ownerUid || "").trim();
+  const userPhone = String(isDriver ? order.driverPhone || "" : order.ownerPhone || "").trim();
+  if (!userName && !userUid && !userPhone) return;
+
+  const notificationRef = doc(collection(db, "notifications"));
+  batch.set(notificationRef, {
+    id: notificationRef.id,
+    userName,
+    userUid,
+    userPhone,
+    title: "تحديث حالة الطلب",
+    body: statusNotificationBody(order, status),
+    createdAt: serverTimestamp(),
+    clientCreatedAt: new Date(),
+    isRead: false,
+    isDeleted: false,
+    type: "order",
+    targetPage: "orders",
+    orderId: order.docId || order.id || "",
   });
-  toast("تم تحديث حالة الطلب");
+}
+
+async function updateOrderStatus(order, status) {
+  if (status === order.status) return toast("حالة الطلب محفوظة مسبقاً", "info");
+  if (!confirm(`تغيير حالة الطلب ${orderNumberText(order)} من ${order.status || "غير محدد"} إلى: ${status}؟\n\nسيتم تحديث الحمولة والمحادثة والتنبيهات المرتبطة تلقائياً.`)) return;
+
+  const orderId = String(order.docId || order.id || "").trim();
+  if (!orderId) return alert("رقم الطلب غير موجود");
+
+  let disputeNote = "";
+  if (status === "نزاع") {
+    disputeNote = prompt("اكتب ملاحظة النزاع أو سبب مشكلة التسليم:", order.deliveryIssueNote || "") ?? "";
+  }
+
+  const oldStatus = order.status || "";
+  const isDriverToLoad = orderRequestType(order) === "driver_to_load";
+  const loadId = String(order.loadId || "").trim();
+  const trackable = isTrackableOrder(status);
+  const completed = isCompletedOrder(status);
+  const closed = isClosedOrder(status);
+  const reservedLoad = ["مقبول", "تم التحميل", "في الطريق", "بانتظار تأكيد الاستلام", "نزاع"].includes(status);
+
+  try {
+    const driverLockId = adminDriverLockId(order);
+    const driverLockRef = driverLockId ? doc(db, "active_driver_orders", driverLockId) : null;
+    const loadLockRef = isDriverToLoad && loadId ? doc(db, "active_load_orders", adminSafeDocId(loadId)) : null;
+    const availabilityId = adminSafeDocId(order.driverPhone || order.driverName || "");
+    const availabilityRef = availabilityId ? doc(db, "driver_availability", availabilityId) : null;
+
+    const [driverLockSnapshot, loadLockSnapshot, availabilitySnapshot] = await Promise.all([
+      driverLockRef ? getDoc(driverLockRef) : Promise.resolve(null),
+      loadLockRef ? getDoc(loadLockRef) : Promise.resolve(null),
+      availabilityRef ? getDoc(availabilityRef) : Promise.resolve(null),
+    ]);
+
+    if (trackable && driverLockSnapshot?.exists() && String(driverLockSnapshot.data()?.orderId || "") !== orderId) {
+      throw new Error("السائق مرتبط بطلب نشط آخر. أنهِ الطلب الآخر أولاً.");
+    }
+    if (reservedLoad && loadLockSnapshot?.exists() && String(loadLockSnapshot.data()?.orderId || "") !== orderId) {
+      throw new Error("الحمولة مرتبطة بطلب نشط آخر. أنهِ الطلب الآخر أولاً.");
+    }
+
+    const batch = writeBatch(db);
+    const orderUpdate = {
+      status,
+      updatedAt: serverTimestamp(),
+      trackingRequired: trackable,
+      trackingEnabled: trackable,
+      chatClosed: closed,
+      statusHistory: arrayUnion({ status, at: new Date(), note: "تعديل إداري" }),
+    };
+
+    if (closed) {
+      orderUpdate.chatClosedAt = serverTimestamp();
+      orderUpdate.chatClosedReason = completed ? "admin_completed" : `order_${status}`;
+    } else {
+      orderUpdate.chatClosedAt = deleteField();
+      orderUpdate.chatClosedReason = "";
+    }
+
+    const downstreamFields = [
+      "acceptedAt", "loadedAt", "onTheWayAt", "deliveredAt",
+      "deliveryConfirmationDeadlineAt", "ownerConfirmedAt", "deliveryIssueAt",
+      "completedAt", "autoCompletedAt", "deliveryIssueNote", "completionType",
+    ];
+    const keepUntil = {
+      "مقبول": 0,
+      "تم التحميل": 1,
+      "في الطريق": 2,
+      "بانتظار تأكيد الاستلام": 4,
+      "نزاع": 6,
+      "مكتمل": 10,
+      "تم التسليم": 10,
+    }[status] ?? -1;
+    downstreamFields.forEach((field, index) => {
+      if (index > keepUntil) orderUpdate[field] = deleteField();
+    });
+
+    if (status === "مقبول") orderUpdate.acceptedAt = serverTimestamp();
+    if (status === "تم التحميل") orderUpdate.loadedAt = serverTimestamp();
+    if (status === "في الطريق") orderUpdate.onTheWayAt = serverTimestamp();
+    if (status === "بانتظار تأكيد الاستلام") {
+      orderUpdate.deliveredAt = serverTimestamp();
+      orderUpdate.deliveryConfirmationDeadlineAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      orderUpdate.trackingRequired = false;
+      orderUpdate.trackingEnabled = false;
+      orderUpdate.trackingStoppedAt = serverTimestamp();
+      if (!order.deliveryLocation) {
+        const tracking = getTrackingForOrder(order);
+        if (hasTrackingLocation(tracking)) {
+          orderUpdate.deliveryLocation = {
+            latitude: readNumber(tracking.driverLat),
+            longitude: readNumber(tracking.driverLng),
+            accuracy: readNumber(tracking.accuracy),
+            source: "last_tracking",
+            capturedAt: new Date(),
+            lastTrackingAt: parseFirestoreDate(tracking.updatedAt) || null,
+          };
+          orderUpdate.deliveryLocationCaptured = true;
+        }
+      }
+    }
+    if (status === "نزاع") {
+      if (!order.deliveredAt) orderUpdate.deliveredAt = serverTimestamp();
+      orderUpdate.deliveryIssueAt = serverTimestamp();
+      orderUpdate.deliveryIssueNote = disputeNote.trim();
+      orderUpdate.trackingRequired = false;
+      orderUpdate.trackingEnabled = false;
+      if (!order.deliveryLocation) {
+        const tracking = getTrackingForOrder(order);
+        if (hasTrackingLocation(tracking)) {
+          orderUpdate.deliveryLocation = {
+            latitude: readNumber(tracking.driverLat),
+            longitude: readNumber(tracking.driverLng),
+            accuracy: readNumber(tracking.accuracy),
+            source: "last_tracking",
+            capturedAt: new Date(),
+            lastTrackingAt: parseFirestoreDate(tracking.updatedAt) || null,
+          };
+          orderUpdate.deliveryLocationCaptured = true;
+        }
+      }
+    }
+    if (completed) {
+      if (!order.deliveredAt) orderUpdate.deliveredAt = serverTimestamp();
+      orderUpdate.completedAt = serverTimestamp();
+      orderUpdate.completionType = "admin_confirmed";
+      orderUpdate.trackingRequired = false;
+      orderUpdate.trackingEnabled = false;
+      orderUpdate.trackingStoppedAt = serverTimestamp();
+      if (!order.deliveryLocation) {
+        const tracking = getTrackingForOrder(order);
+        if (hasTrackingLocation(tracking)) {
+          orderUpdate.deliveryLocation = {
+            latitude: readNumber(tracking.driverLat),
+            longitude: readNumber(tracking.driverLng),
+            accuracy: readNumber(tracking.accuracy),
+            source: "last_tracking",
+            capturedAt: new Date(),
+            lastTrackingAt: parseFirestoreDate(tracking.updatedAt) || null,
+          };
+          orderUpdate.deliveryLocationCaptured = true;
+        }
+      }
+    }
+    if (status === "ملغي") orderUpdate.cancelledAt = serverTimestamp();
+
+    batch.set(doc(db, "orders", orderId), orderUpdate, { merge: true });
+    batch.set(doc(db, "chat_threads", orderId), {
+      orderId,
+      chatClosed: closed,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    if (driverLockRef) {
+      if (trackable) {
+        batch.set(driverLockRef, {
+          orderId,
+          driverUid: order.driverUid || "",
+          driverPhone: order.driverPhone || "",
+          driverName: order.driverName || "",
+          loadId,
+          active: true,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      } else if (driverLockSnapshot?.exists() && String(driverLockSnapshot.data()?.orderId || "") === orderId) {
+        batch.delete(driverLockRef);
+      }
+    }
+
+    if (availabilityRef) {
+      if (trackable) {
+        batch.set(availabilityRef, { isActive: false, activeOrderId: orderId, updatedAt: serverTimestamp() }, { merge: true });
+      } else if (availabilitySnapshot?.exists() && String(availabilitySnapshot.data()?.activeOrderId || "") === orderId) {
+        batch.set(availabilityRef, { activeOrderId: deleteField(), updatedAt: serverTimestamp() }, { merge: true });
+      }
+    }
+
+    if (isDriverToLoad && loadId) {
+      const loadRef = doc(db, "loads", loadId);
+      if (completed) {
+        batch.set(loadRef, { status: "delivered", deliveredAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+      } else if (reservedLoad) {
+        batch.set(loadRef, {
+          status: "reserved",
+          activeOrderId: orderId,
+          selectedDriverUid: order.driverUid || "",
+          selectedDriverName: order.driverName || "",
+          selectedDriverPhone: order.driverPhone || "",
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      } else {
+        batch.set(loadRef, {
+          status: "available",
+          activeOrderId: deleteField(),
+          selectedDriverUid: deleteField(),
+          selectedDriverName: "",
+          selectedDriverPhone: "",
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+
+      if (loadLockRef) {
+        if (reservedLoad) {
+          batch.set(loadLockRef, {
+            orderId,
+            loadId,
+            driverUid: order.driverUid || "",
+            driverPhone: order.driverPhone || "",
+            driverName: order.driverName || "",
+            active: true,
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        } else if (loadLockSnapshot?.exists() && String(loadLockSnapshot.data()?.orderId || "") === orderId) {
+          batch.delete(loadLockRef);
+        }
+      }
+
+      const requestId = adminLoadRequestId(order);
+      if (requestId) {
+        let requestStatus = "pending";
+        if (reservedLoad || completed) requestStatus = "accepted";
+        if (status === "مرفوض") requestStatus = "rejected";
+        if (["ملغي", "ملغي تلقائياً", "منتهي"].includes(status)) requestStatus = "cancelled";
+        batch.set(doc(db, "loads", loadId, "requests", requestId), {
+          status: requestStatus,
+          acceptedOrderId: reservedLoad || completed ? orderId : "",
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+
+    if (status === "مقبول") {
+      const currentDriverPhone = cleanPhone(order.driverPhone || "");
+      const otherPending = allOrdersCache.filter((item) => {
+        const itemId = String(item.docId || item.id || "");
+        if (itemId === orderId || !["بانتظار موافقة السائق", "بانتظار موافقة صاحب البضاعة"].includes(item.status)) return false;
+        const sameDriver = currentDriverPhone
+          ? cleanPhone(item.driverPhone || "") === currentDriverPhone
+          : String(item.driverName || "").trim() === String(order.driverName || "").trim();
+        const sameLoad = isDriverToLoad && loadId && String(item.loadId || "").trim() === loadId;
+        return sameDriver || sameLoad;
+      }).slice(0, 90);
+
+      otherPending.forEach((item) => {
+        const itemId = String(item.docId || item.id || "");
+        batch.set(doc(db, "orders", itemId), {
+          status: "ملغي تلقائياً",
+          cancelReason: "تم الإلغاء تلقائياً بعد قبول طلب آخر مرتبط بالسائق أو الحمولة",
+          chatClosed: true,
+          chatClosedAt: serverTimestamp(),
+          chatClosedReason: "order_ملغي تلقائياً",
+          updatedAt: serverTimestamp(),
+          statusHistory: arrayUnion({ status: "ملغي تلقائياً", at: new Date(), note: "إلغاء إداري تلقائي بعد القبول" }),
+        }, { merge: true });
+
+        if (orderRequestType(item) === "driver_to_load" && item.loadId) {
+          const itemRequestId = adminLoadRequestId(item);
+          if (itemRequestId) {
+            batch.set(doc(db, "loads", item.loadId, "requests", itemRequestId), {
+              status: "rejected",
+              updatedAt: serverTimestamp(),
+            }, { merge: true });
+          }
+        }
+        addOrderStatusNotificationToBatch(batch, item, "ملغي تلقائياً", "owner");
+        addOrderStatusNotificationToBatch(batch, item, "ملغي تلقائياً", "driver");
+      });
+    }
+
+    addOrderStatusNotificationToBatch(batch, order, status, "owner");
+    addOrderStatusNotificationToBatch(batch, order, status, "driver");
+    await batch.commit();
+
+    await addAdminLog("update_order_status", {
+      docId: orderId,
+      orderNumber: orderNumberText(order),
+      oldStatus,
+      newStatus: status,
+      ownerName: order.ownerName || "",
+      driverName: order.driverName || "",
+    });
+    toast("تم تحديث الطلب والحمولة وإرسال الإشعارات");
+  } catch (error) {
+    console.error("Update order status error:", error);
+    alert(`تعذر تحديث حالة الطلب: ${error?.message || error}`);
+  }
 }
 
 async function deleteOrder(docId) {
   const order = allOrdersCache.find((o) => o.docId === docId) || {};
+  if (isActiveOrder(order.status)) {
+    return alert("لا يمكن حذف طلب نشط. أنهِ أو ألغِ الطلب أولاً حتى لا تبقى الحمولة أو السائق بحالة حجز.");
+  }
   if (!confirm("حذف هذا الطلب نهائياً؟")) return;
   if (prompt("للتأكيد اكتب: حذف") !== "حذف") return;
   await deleteDoc(doc(db, "orders", docId));
@@ -5098,9 +5913,51 @@ async function deleteOrder(docId) {
 
 async function updateLoadStatus(docId, status) {
   const load = allLoadsCache.find((l) => l.docId === docId) || {};
+  const relatedOrders = getOrdersForLoad(load);
+  const activeOrder = relatedOrders.find((order) => isActiveOrder(order.status));
+  const completedOrder = relatedOrders.find((order) => isCompletedOrder(order.status));
+
+  if (activeOrder && status !== "reserved") {
+    return alert(`الحمولة مرتبطة بطلب نشط ${orderNumberText(activeOrder)}. غيّر حالة الطلب أولاً حتى تتحدث الحمولة تلقائياً.`);
+  }
+  if (!activeOrder && status === "reserved") {
+    return alert("لا يمكن حجز الحمولة من الأدمن بدون طلب نشط مرتبط بها.");
+  }
+  if (status === "delivered" && !completedOrder) {
+    return alert("يجب إكمال الطلب المرتبط أولاً قبل وضع الحمولة بحالة تم التسليم.");
+  }
   if (!confirm(`تغيير حالة الحمولة إلى: ${loadStatusText(status)} ؟`)) return;
   const oldStatus = load.status || "";
-  await setDoc(doc(db, "loads", docId), { status, updatedAt: serverTimestamp() }, { merge: true });
+  const batch = writeBatch(db);
+  const update = { status, updatedAt: serverTimestamp() };
+  if (status === "available" || status === "cancelled") {
+    update.activeOrderId = deleteField();
+    update.selectedDriverUid = deleteField();
+    update.selectedDriverName = "";
+    update.selectedDriverPhone = "";
+  }
+  if (status === "delivered") update.deliveredAt = serverTimestamp();
+  batch.set(doc(db, "loads", docId), update, { merge: true });
+
+  if (load.ownerName || load.ownerPhone || load.ownerUid) {
+    const notificationRef = doc(collection(db, "notifications"));
+    batch.set(notificationRef, {
+      id: notificationRef.id,
+      userName: load.ownerName || "",
+      userUid: load.ownerUid || "",
+      userPhone: load.ownerPhone || "",
+      title: "تحديث حالة الحمولة",
+      body: `${loadNumberText(load)}: أصبحت حالة الحمولة ${loadStatusText(status)}.`,
+      createdAt: serverTimestamp(),
+      clientCreatedAt: new Date(),
+      isRead: false,
+      isDeleted: false,
+      type: "load_updated",
+      targetPage: "orders",
+      orderId: load.activeOrderId || "",
+    });
+  }
+  await batch.commit();
   await addAdminLog("update_load_status", {
     docId,
     loadNumber: loadNumberText(load),
@@ -5113,6 +5970,9 @@ async function updateLoadStatus(docId, status) {
 
 async function deleteLoad(docId) {
   const load = allLoadsCache.find((l) => l.docId === docId) || {};
+  if (load.status === "reserved" || getOrdersForLoad(load).some((order) => isActiveOrder(order.status))) {
+    return alert("لا يمكن حذف حمولة مرتبطة بطلب نشط. أنهِ أو ألغِ الطلب أولاً.");
+  }
   if (!confirm("حذف هذه الحمولة نهائياً؟")) return;
   if (prompt("للتأكيد اكتب: حذف") !== "حذف") return;
   await deleteDoc(doc(db, "loads", docId));
@@ -5170,11 +6030,14 @@ window.sendAdminNotification = async function () {
     batch.set(doc(db, "notifications", notificationId), {
       id: notificationId,
       userName: user.name || "",
+      userUid: user.uid || user.docId || "",
       userPhone: user.phone || "",
       title,
       body,
       createdAt: serverTimestamp(),
+      clientCreatedAt: new Date(),
       isRead: false,
+      isDeleted: false,
       type: "admin",
       targetPage,
       orderId: "",
@@ -5911,6 +6774,7 @@ function replaceSubscriptionActionsWithSelect() {
 }
 
 setInterval(replaceSubscriptionActionsWithSelect, 700);
+<<<<<<< HEAD
 
 
 /* =========================================================
@@ -6148,3 +7012,5 @@ function normalizeProfessionalSettingsPage() {
   section.classList.add("settings-pro-ready");
 }
 setInterval(normalizeProfessionalSettingsPage, 800);
+=======
+>>>>>>> 10d3e7b (Sync admin panel with latest app changes)

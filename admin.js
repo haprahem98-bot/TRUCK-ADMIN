@@ -18,4 +18,4 @@
   الإضافات الجديدة تكون داخل modules حسب القسم.
 */
 
-import "./modules/legacy/app.js";
+import "./modules/legacy/app.js?v=admin_sync_20260716_1";
