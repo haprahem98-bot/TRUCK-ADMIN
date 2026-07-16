@@ -2652,6 +2652,124 @@
   }
 }
 
+/* ===== App sync 2026-07-16: delivery proof, addresses and chats ===== */
+.delivery-proof-card{
+  border-color:#bbf7d0 !important;
+  background:linear-gradient(180deg,#f0fdf4 0%,#ffffff 100%) !important;
+}
+
+.delivery-proof-card h3{
+  color:#166534 !important;
+}
+
+.dispute-card{
+  border-color:#fecaca !important;
+  background:linear-gradient(180deg,#fff1f2 0%,#ffffff 100%) !important;
+}
+
+.dispute-card h3{
+  color:#b91c1c !important;
+}
+
+.pickup-address-card,
+.conversation-card{
+  position:relative;
+  overflow:hidden;
+}
+
+.pickup-address-card::before,
+.conversation-card::before{
+  content:"";
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  width:4px;
+  background:#0b3a67;
+}
+
+.pickup-address-card::before{
+  background:#16a34a;
+}
+
+.chat-audit-note{
+  padding:14px 16px;
+  margin-bottom:16px;
+  border-radius:14px;
+  color:#075985;
+  background:#e0f2fe;
+  border:1px solid #bae6fd;
+  font-weight:800;
+  line-height:1.8;
+}
+
+.admin-conversation-messages{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  max-height:62vh;
+  overflow:auto;
+  padding:4px 2px 18px;
+}
+
+.admin-chat-message{
+  width:min(78%,680px);
+  padding:13px 15px;
+  border-radius:18px 18px 6px 18px;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  box-shadow:0 8px 20px rgba(15,23,42,.06);
+}
+
+.admin-chat-message.driver{
+  align-self:flex-start;
+  border-radius:18px 18px 18px 6px;
+  background:#f8fafc;
+  border-color:#e2e8f0;
+}
+
+.admin-chat-message.owner{
+  align-self:flex-end;
+}
+
+.admin-chat-message > div{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.admin-chat-message b{
+  color:#0f172a;
+}
+
+.admin-chat-message span,
+.admin-chat-message small{
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.admin-chat-message p{
+  margin:9px 0;
+  color:#1e293b;
+  line-height:1.8;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+@media(max-width:760px){
+  .admin-chat-message{
+    width:88%;
+  }
+
+  #pickupAddressesSection .actions,
+  #conversationsSection .actions{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+  }
+}
+
 
 /* ===== Real select dropdown for subscription actions ===== */
 .subscription-original-hidden,
@@ -2756,7 +2874,6 @@
   }
 }
 
-<<<<<<< HEAD
 
 /* =========================================================
    Config Center Redesign
@@ -3909,122 +4026,5 @@
 
   .settings-pro-toggle input:checked + .settings-pro-switch::after{
     transform:translateX(-20px);
-=======
-/* ===== App sync 2026-07-16: delivery proof, addresses and chats ===== */
-.delivery-proof-card{
-  border-color:#bbf7d0 !important;
-  background:linear-gradient(180deg,#f0fdf4 0%,#ffffff 100%) !important;
-}
-
-.delivery-proof-card h3{
-  color:#166534 !important;
-}
-
-.dispute-card{
-  border-color:#fecaca !important;
-  background:linear-gradient(180deg,#fff1f2 0%,#ffffff 100%) !important;
-}
-
-.dispute-card h3{
-  color:#b91c1c !important;
-}
-
-.pickup-address-card,
-.conversation-card{
-  position:relative;
-  overflow:hidden;
-}
-
-.pickup-address-card::before,
-.conversation-card::before{
-  content:"";
-  position:absolute;
-  top:0;
-  right:0;
-  bottom:0;
-  width:4px;
-  background:#0b3a67;
-}
-
-.pickup-address-card::before{
-  background:#16a34a;
-}
-
-.chat-audit-note{
-  padding:14px 16px;
-  margin-bottom:16px;
-  border-radius:14px;
-  color:#075985;
-  background:#e0f2fe;
-  border:1px solid #bae6fd;
-  font-weight:800;
-  line-height:1.8;
-}
-
-.admin-conversation-messages{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  max-height:62vh;
-  overflow:auto;
-  padding:4px 2px 18px;
-}
-
-.admin-chat-message{
-  width:min(78%,680px);
-  padding:13px 15px;
-  border-radius:18px 18px 6px 18px;
-  background:#eff6ff;
-  border:1px solid #bfdbfe;
-  box-shadow:0 8px 20px rgba(15,23,42,.06);
-}
-
-.admin-chat-message.driver{
-  align-self:flex-start;
-  border-radius:18px 18px 18px 6px;
-  background:#f8fafc;
-  border-color:#e2e8f0;
-}
-
-.admin-chat-message.owner{
-  align-self:flex-end;
-}
-
-.admin-chat-message > div{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.admin-chat-message b{
-  color:#0f172a;
-}
-
-.admin-chat-message span,
-.admin-chat-message small{
-  color:#64748b;
-  font-size:12px;
-  font-weight:700;
-}
-
-.admin-chat-message p{
-  margin:9px 0;
-  color:#1e293b;
-  line-height:1.8;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-}
-
-@media(max-width:760px){
-  .admin-chat-message{
-    width:88%;
-  }
-
-  #pickupAddressesSection .actions,
-  #conversationsSection .actions{
-    display:grid !important;
-    grid-template-columns:1fr !important;
->>>>>>> 10d3e7b (Sync admin panel with latest app changes)
   }
 }

@@ -463,8 +463,8 @@ function deliveryLocationForOrder(order = {}) {
   const tracking = getTrackingForOrder(order);
   if (hasTrackingLocation(tracking)) {
     return {
-      lat: readNumber(tracking.driverLat),
-      lng: readNumber(tracking.driverLng),
+      lat: trackingLatitude(tracking),
+      lng: trackingLongitude(tracking),
       accuracy: readNumber(tracking.accuracy),
       source: "last_tracking",
       capturedAt: tracking.deliveryCapturedAt || tracking.updatedAt || null,
@@ -4497,14 +4497,10 @@ function buildLoadCard(load, showActions = true) {
 function renderTrackingStats() {
   if (!$("trackingStats")) return;
 
-<<<<<<< HEAD
   const trackableOrders = allOrdersCache.filter((o) => {
     const tracking = getTrackingForOrder(o);
-    return ["مقبول", "تم التحميل", "في الطريق"].includes(o.status) || hasTrackingLocation(tracking);
+    return isTrackableOrder(o.status) || hasTrackingLocation(tracking);
   });
-=======
-  const trackableOrders = allOrdersCache.filter((o) => isTrackableOrder(o.status));
->>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   const knownLocations = trackableOrders.filter((order) => {
     return hasTrackingLocation(getTrackingForOrder(order));
@@ -4529,14 +4525,10 @@ function renderTracking() {
 
   const text = trackingSearchText.toLowerCase();
 
-<<<<<<< HEAD
   let orders = allOrdersCache.filter((order) => {
     const tracking = getTrackingForOrder(order);
-    return ["مقبول", "تم التحميل", "في الطريق"].includes(order.status) || hasTrackingLocation(tracking);
+    return isTrackableOrder(order.status) || hasTrackingLocation(tracking);
   });
-=======
-  let orders = allOrdersCache.filter((order) => isTrackableOrder(order.status));
->>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   orders = orders.filter((order) => {
     const tracking = getTrackingForOrder(order);
@@ -4838,14 +4830,9 @@ function showOrderDetailsModal(orderDocId) {
   const driver = findUserByNameOrPhone(order.driverName, order.driverPhone, "driver");
 
   const hasLocation = hasTrackingLocation(tracking);
-<<<<<<< HEAD
   const lat = hasLocation ? trackingLatitude(tracking) : null;
   const lng = hasLocation ? trackingLongitude(tracking) : null;
-=======
-  const lat = hasLocation ? readNumber(tracking.driverLat) : null;
-  const lng = hasLocation ? readNumber(tracking.driverLng) : null;
   const deliveryLocation = deliveryLocationForOrder(order);
->>>>>>> 10d3e7b (Sync admin panel with latest app changes)
 
   const ownerWhatsApp = whatsappUrl(order.ownerName, order.ownerPhone);
   const driverWhatsApp = whatsappUrl(order.driverName, order.driverPhone);
@@ -5695,8 +5682,8 @@ async function updateOrderStatus(order, status) {
         const tracking = getTrackingForOrder(order);
         if (hasTrackingLocation(tracking)) {
           orderUpdate.deliveryLocation = {
-            latitude: readNumber(tracking.driverLat),
-            longitude: readNumber(tracking.driverLng),
+            latitude: trackingLatitude(tracking),
+            longitude: trackingLongitude(tracking),
             accuracy: readNumber(tracking.accuracy),
             source: "last_tracking",
             capturedAt: new Date(),
@@ -5716,8 +5703,8 @@ async function updateOrderStatus(order, status) {
         const tracking = getTrackingForOrder(order);
         if (hasTrackingLocation(tracking)) {
           orderUpdate.deliveryLocation = {
-            latitude: readNumber(tracking.driverLat),
-            longitude: readNumber(tracking.driverLng),
+            latitude: trackingLatitude(tracking),
+            longitude: trackingLongitude(tracking),
             accuracy: readNumber(tracking.accuracy),
             source: "last_tracking",
             capturedAt: new Date(),
@@ -5738,8 +5725,8 @@ async function updateOrderStatus(order, status) {
         const tracking = getTrackingForOrder(order);
         if (hasTrackingLocation(tracking)) {
           orderUpdate.deliveryLocation = {
-            latitude: readNumber(tracking.driverLat),
-            longitude: readNumber(tracking.driverLng),
+            latitude: trackingLatitude(tracking),
+            longitude: trackingLongitude(tracking),
             accuracy: readNumber(tracking.accuracy),
             source: "last_tracking",
             capturedAt: new Date(),
@@ -6774,7 +6761,6 @@ function replaceSubscriptionActionsWithSelect() {
 }
 
 setInterval(replaceSubscriptionActionsWithSelect, 700);
-<<<<<<< HEAD
 
 
 /* =========================================================
@@ -7012,5 +6998,3 @@ function normalizeProfessionalSettingsPage() {
   section.classList.add("settings-pro-ready");
 }
 setInterval(normalizeProfessionalSettingsPage, 800);
-=======
->>>>>>> 10d3e7b (Sync admin panel with latest app changes)
