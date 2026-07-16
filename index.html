@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b3a67" />
+  <title>لوحة إدارة حمولتي</title>
+  <link rel="stylesheet" href="admin.css?v=admin_sync_20260716_1" />
+</head>
+<body>
+  <div id="loginBox" class="login-screen">
+    <div class="login-card">
+      <div class="login-icon">🛡️</div>
+      <h1>لوحة إدارة حمولتي</h1>
+      <p>إدارة المستخدمين، الطلبات، الحمولات، التوفر، الرسائل والإعدادات.</p>
+      <input id="adminPassword" type="password" placeholder="كلمة مرور الإدارة" autocomplete="current-password" />
+      <button class="primary-btn full" onclick="adminLogin()">دخول</button>
+      <small>مؤقتاً كلمة المرور داخل الكود: 123456</small>
+    </div>
+  </div>
+
+  <div id="dashboard" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand-box">
+        <div class="brand-logo">🚚</div>
+        <div>
+          <h2>حمولتي</h2>
+          <p>لوحة الإدارة</p>
+        </div>
+      </div>
+
+      <nav class="side-menu" aria-label="القائمة الرئيسية">
+        <div class="menu-group-label">عام</div>
+        <button class="menu-btn active" data-section="home" onclick="showSection('home')">📊 الرئيسية</button>
+        <button class="menu-btn important-menu" data-section="config" onclick="showSection('config')">🗂️ القوائم</button>
+        <button class="menu-btn" data-section="settings" onclick="showSection('settings')">⚙️ الإعدادات</button>
+
+        <div class="menu-group-label">المستخدمين</div>
+        <button class="menu-btn" data-section="users" onclick="showSection('users')">👥 المستخدمين</button>
+        <button class="menu-btn" data-section="drivers" onclick="showSection('drivers')">🚚 السائقين</button>
+        <button class="menu-btn" data-section="owners" onclick="showSection('owners')">📦 أصحاب البضاعة</button>
+        <button class="menu-btn" data-section="pickupAddresses" onclick="showSection('pickupAddresses')">📍 عناوين الاستلام</button>
+
+        <div class="menu-group-label">العمليات</div>
+        <button class="menu-btn" data-section="orders" onclick="showSection('orders')">📋 الطلبات</button>
+        <button class="menu-btn" data-section="loads" onclick="showSection('loads')">📦 الحمولات</button>
+        <button class="menu-btn" data-section="availability" onclick="showSection('availability')">🟢 التوفر</button>
+        <button class="menu-btn" data-section="tracking" onclick="showSection('tracking')">📍 التتبع</button>
+        <button class="menu-btn" data-section="conversations" onclick="showSection('conversations')">💬 المحادثات</button>
+        <button class="menu-btn" data-section="message" onclick="showSection('message')">📢 الرسائل العامة</button>
+      </nav>
+
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">الرئيسية</h1>
+          <p id="pageSubtitle">نظرة عامة على نشاط التطبيق</p>
+        </div>
+        <div class="topbar-actions">
+          <span id="lastUpdatedText" class="sync-pill">بانتظار البيانات</span>
+        </div>
+      </header>
+
+      <section id="homeSection" class="section">
+        <div class="panel dashboard-hero">
+          <div>
+            <span class="dashboard-kicker">نظرة عامة</span>
+            <h2>لوحة إدارة حمولة</h2>
+            <p>ملخص سريع عن المستخدمين والطلبات والحمولات والتتبع حتى تعرف وين لازم تركز أولاً.</p>
+          </div>
+          <div class="dashboard-hero-actions">
+            <button class="primary-btn" onclick="showSection('orders')">متابعة الطلبات</button>
+            <button class="ghost-btn" onclick="showSection('config')">إدارة القوائم</button>
+          </div>
+        </div>
+
+        <div id="statsGrid" class="stats-grid dashboard-stats"></div>
+
+        <div class="dashboard-main-grid">
+          <div class="panel dashboard-alerts-panel">
+            <div class="panel-header">
+              <div>
+                <h2>تنبيهات تحتاج متابعة</h2>
+                <p>أهم الأشياء التي قد تحتاج قرار من الإدارة.</p>
+              </div>
+              <button class="ghost-btn" onclick="showSection('users')">المستخدمين</button>
+            </div>
+            <div id="adminAlerts" class="admin-alerts-list"></div>
+          </div>
+
+          <div class="panel dashboard-quick-panel">
+            <div class="panel-header">
+              <div>
+                <h2>اختصارات سريعة</h2>
+                <p>انتقل مباشرة للقسم المطلوب.</p>
+              </div>
+            </div>
+            <div class="quick-actions-grid">
+              <button onclick="showSection('drivers')">🚚 السائقين</button>
+              <button onclick="showSection('owners')">📦 أصحاب البضاعة</button>
+              <button onclick="showSection('orders')">📋 الطلبات</button>
+              <button onclick="showSection('loads')">📦 الحمولات</button>
+              <button onclick="showSection('availability')">🟢 توفر السائقين</button>
+              <button onclick="showSection('tracking')">📍 التتبع</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-lists-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>آخر الطلبات</h2>
+                <p>آخر 5 طلبات مسجلة.</p>
+              </div>
+              <button class="ghost-btn" onclick="showSection('orders')">عرض الكل</button>
+            </div>
+            <div id="latestOrders" class="cards-list compact-list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>آخر الحمولات</h2>
+                <p>آخر 5 حمولات منشورة.</p>
+              </div>
+              <button class="ghost-btn" onclick="showSection('loads')">عرض الكل</button>
+            </div>
+            <div id="latestLoads" class="cards-list compact-list"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>آخر المستخدمين</h2>
+                <p>آخر 6 حسابات تم إنشاؤها.</p>
+              </div>
+              <button class="ghost-btn" onclick="showSection('users')">عرض الكل</button>
+            </div>
+            <div id="latestUsers" class="cards-list compact-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="usersSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>إدارة كل المستخدمين</h2>
+          <p>توثيق، حظر، تعديل بيانات، تعيين كلمة مرور، وتحويل نوع الحساب.</p>
+        </div>
+        <div id="usersStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="usersSearchInput" placeholder="بحث بالاسم، الرقم، الإيميل أو UID" />
+          <select id="usersRoleFilter">
+            <option value="all">كل الأنواع</option>
+            <option value="driver">سائق</option>
+            <option value="owner">صاحب بضاعة</option>
+            <option value="admin">أدمن</option>
+          </select>
+          <select id="usersStatusFilter">
+            <option value="all">كل الحالات</option>
+            <option value="pending">بانتظار التوثيق</option>
+            <option value="verified">موثق</option>
+            <option value="blocked">محظور</option>
+          </select>
+        </div>
+        <div id="usersList" class="cards-grid"></div>
+      </section>
+
+      <section id="driversSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>السائقين</h2>
+          <p>متابعة السائقين المتاحين، معلومات الخط، نوع الشاحنة، والحالة.</p>
+        </div>
+        <div id="driversStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="driversSearchInput" placeholder="بحث باسم السائق، الرقم، نوع الشاحنة أو المدينة" />
+          <select id="driversAvailabilityFilter">
+            <option value="available">المتاحين الآن</option>
+            <option value="unavailable">غير المتاحين</option>
+            <option value="all">كل السائقين</option>
+          </select>
+        </div>
+        <div id="driversList" class="cards-grid"></div>
+      </section>
+
+      <section id="ownersSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>أصحاب البضاعة</h2>
+          <p>متابعة أصحاب البضاعة حسب الطلبات والحمولات وحالة الحساب.</p>
+        </div>
+        <div id="ownersStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="ownersSearchInput" placeholder="بحث باسم صاحب البضاعة أو الرقم" />
+          <select id="ownersFilter">
+            <option value="all">كل أصحاب البضاعة</option>
+            <option value="active_orders">عندهم طلبات نشطة</option>
+            <option value="published_loads">عندهم حمولات منشورة</option>
+            <option value="saved_addresses">عندهم عناوين محفوظة</option>
+            <option value="no_orders">بدون طلبات</option>
+            <option value="verified">موثقين</option>
+            <option value="pending">غير موثقين</option>
+            <option value="blocked">محظورين</option>
+          </select>
+        </div>
+        <div id="ownersList" class="cards-grid"></div>
+      </section>
+
+      <section id="pickupAddressesSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>عناوين الاستلام المحفوظة</h2>
+          <p>مراجعة عناوين أصحاب البضاعة حسب المحافظة والمدينة، مع تمييز العنوان الافتراضي.</p>
+        </div>
+        <div id="pickupAddressesStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="pickupAddressesSearchInput" placeholder="بحث باسم صاحب البضاعة، الهاتف، اسم العنوان، المحافظة أو المدينة" />
+          <select id="pickupAddressesDefaultFilter">
+            <option value="all">كل العناوين</option>
+            <option value="default">الافتراضية فقط</option>
+            <option value="other">غير الافتراضية</option>
+          </select>
+        </div>
+        <div id="pickupAddressesList" class="cards-grid"></div>
+      </section>
+
+      <section id="ordersSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>كل الطلبات</h2>
+          <p>فلترة وتغيير حالة الطلب أو حذفه، مع تفاصيل السائق وصاحب البضاعة.</p>
+        </div>
+        <div id="ordersStats" class="mini-stats-grid"></div>
+        <div id="ordersStatusChips" class="chips-row"></div>
+        <div class="tools-box">
+          <input id="ordersSearchInput" placeholder="بحث برقم ORD، اسم، رقم، مدينة، أو حمولة" />
+          <select id="ordersStatusFilter">
+            <option value="all">كل الحالات</option>
+            <option value="بانتظار موافقة السائق">بانتظار موافقة السائق</option>
+            <option value="بانتظار موافقة صاحب البضاعة">بانتظار موافقة صاحب البضاعة</option>
+            <option value="مقبول">مقبول</option>
+            <option value="تم التحميل">تم التحميل</option>
+            <option value="في الطريق">في الطريق</option>
+            <option value="بانتظار تأكيد الاستلام">بانتظار تأكيد الاستلام</option>
+            <option value="مكتمل">مكتمل</option>
+            <option value="نزاع">نزاع على التسليم</option>
+            <option value="تم التسليم">تم التسليم (قديم)</option>
+            <option value="مرفوض">مرفوض</option>
+            <option value="ملغي">ملغي</option>
+            <option value="ملغي تلقائياً">ملغي تلقائياً</option>
+            <option value="منتهي">منتهي</option>
+          </select>
+          <select id="ordersTypeFilter">
+            <option value="all">كل أنواع الطلب</option>
+            <option value="owner_to_driver">صاحب البضاعة طلب سائق</option>
+            <option value="driver_to_load">السائق طلب حمولة</option>
+          </select>
+        </div>
+        <div id="ordersList" class="cards-grid"></div>
+      </section>
+
+      <section id="loadsSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>الحمولات المنشورة</h2>
+          <p>كل الحمولات مرتبة حسب تاريخ النشر، مع تحكم بالحالة والحذف.</p>
+        </div>
+        <div id="loadsStats" class="mini-stats-grid"></div>
+        <div id="loadsStatusChips" class="chips-row"></div>
+        <div class="tools-box">
+          <input id="loadsSearchInput" placeholder="بحث برقم LOAD، صاحب البضاعة، المنطقة، السائق أو نوع الحمولة" />
+          <select id="loadsStatusFilter">
+            <option value="all">كل الحالات</option>
+            <option value="available">متاحة</option>
+            <option value="reserved">نشطة</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغاة</option>
+          </select>
+        </div>
+        <div id="loadsList" class="cards-grid"></div>
+      </section>
+
+      <section id="availabilitySection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>توفر السائقين</h2>
+          <p>مراقبة السائقين المتاحين وإيقاف التوفر عند الحاجة.</p>
+        </div>
+        <div id="availabilityStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="availabilitySearchInput" placeholder="بحث بالاسم، الرقم، نوع الشاحنة أو المسار" />
+          <select id="availabilityStatusFilter">
+            <option value="active">المتاحين فقط</option>
+            <option value="inactive">الموقوفين والمنتهيين</option>
+            <option value="all">الكل</option>
+          </select>
+        </div>
+        <div id="availabilityList" class="cards-grid"></div>
+      </section>
+
+
+      <section id="trackingSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>التتبع المباشر للشاحنات</h2>
+          <p>متابعة كل الطلبات النشطة التي يشارك السائق فيها موقعه، مع زر فتح الموقع على الخريطة.</p>
+        </div>
+
+        <div id="trackingStats" class="mini-stats-grid"></div>
+
+        <div class="tools-box">
+          <input id="trackingSearchInput" placeholder="بحث برقم ORD، السائق، صاحب البضاعة، الهاتف، أو المسار" />
+          <select id="trackingStatusFilter">
+            <option value="active">المباشر الآن فقط</option>
+            <option value="known">كل المواقع المعروفة</option>
+            <option value="no_location">طلبات نشطة بدون موقع</option>
+            <option value="all">الكل</option>
+          </select>
+        </div>
+
+        <div id="trackingList" class="cards-grid"></div>
+      </section>
+
+      <section id="conversationsSection" class="section hidden">
+        <div class="panel hero-panel">
+          <h2>محادثات الطلبات</h2>
+          <p>عرض المحادثات المرتبطة بالطلبات وحالة الإغلاق والإخفاء لكل طرف. حذف المحادثة يبقى قراراً مستقلاً لكل مستخدم بعد انتهاء الطلب.</p>
+        </div>
+        <div id="conversationsStats" class="mini-stats-grid"></div>
+        <div class="tools-box">
+          <input id="conversationsSearchInput" placeholder="بحث برقم ORD، اسم السائق، صاحب البضاعة أو آخر رسالة" />
+          <select id="conversationsStatusFilter">
+            <option value="all">كل المحادثات</option>
+            <option value="open">المفتوحة</option>
+            <option value="closed">المغلقة</option>
+            <option value="hidden">المخفية لدى أحد الطرفين</option>
+            <option value="unread">فيها رسائل غير مقروءة</option>
+          </select>
+        </div>
+        <div id="conversationsList" class="cards-grid"></div>
+      </section>
+
+      <section id="messageSection" class="section hidden">
+        <div class="two-columns">
+          <div class="panel form-panel">
+            <h2>رسالة عامة داخل التطبيق</h2>
+            <p>تظهر للمستخدمين عند فتح التطبيق حسب إعداداتك.</p>
+            <label>عنوان الرسالة</label>
+            <input id="globalMessageTitle" placeholder="مثال: تنبيه من الإدارة" />
+            <label>نص الرسالة</label>
+            <textarea id="globalMessageBody" placeholder="اكتب نص الرسالة"></textarea>
+            <div class="switch-row">
+              <label><input id="globalMessageActive" type="checkbox" /> تفعيل الرسالة</label>
+              <label><input id="globalMessageEveryTime" type="checkbox" /> تظهر كل مرة</label>
+            </div>
+            <button class="primary-btn" onclick="saveGlobalMessage()">حفظ الرسالة العامة</button>
+          </div>
+
+          <div class="panel form-panel">
+            <h2>إرسال إشعار للمستخدمين</h2>
+            <p>ينشئ إشعاراً داخل collection notifications لكل المستخدمين المختارين.</p>
+            <label>الفئة المستهدفة</label>
+            <select id="notificationTarget">
+              <option value="all">كل المستخدمين</option>
+              <option value="driver">السائقين فقط</option>
+              <option value="owner">أصحاب البضاعة فقط</option>
+              <option value="verified">الموثقين فقط</option>
+              <option value="pending">غير الموثقين فقط</option>
+            </select>
+            <label>يفتح على صفحة</label>
+            <select id="notificationPage">
+              <option value="notifications">الإشعارات</option>
+              <option value="orders">الطلبات</option>
+              <option value="messages">الرسائل</option>
+            </select>
+            <label>عنوان الإشعار</label>
+            <input id="notificationTitle" placeholder="عنوان مختصر" />
+            <label>نص الإشعار</label>
+            <textarea id="notificationBody" placeholder="نص الإشعار"></textarea>
+            <button class="success-btn" onclick="sendAdminNotification()">إرسال الإشعار</button>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="configSection" class="section hidden">
+        <div class="panel hero-panel config-center-hero">
+          <div>
+            <h2>مركز إدارة القوائم</h2>
+            <p>رتّب الشاحنات والحمولات والمحافظات والمدن من مكان واحد بدون فوضى. اختر القسم المطلوب من التبويبات بالأسفل.</p>
+          </div>
+          <button class="primary-btn" onclick="seedDefaultAppConfig()">إضافة القوائم الأساسية</button>
+        </div>
+
+        <div class="config-center-tabs" role="tablist" aria-label="إدارة القوائم">
+          <button type="button" class="config-tab-btn active" data-config-tab="trucks" onclick="showConfigTab('trucks')">
+            🚚 الشاحنات <span id="configTruckCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="loads" onclick="showConfigTab('loads')">
+            📦 الحمولات <span id="configLoadCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="governorates" onclick="showConfigTab('governorates')">
+            🗺️ المحافظات <span id="configGovernorateCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="cities" onclick="showConfigTab('cities')">
+            🏙️ المدن <span id="configCityCount">0</span>
+          </button>
+          <button type="button" class="config-tab-btn" data-config-tab="coordinates" onclick="showConfigTab('coordinates')">
+            📍 الإحداثيات
+          </button>
+        </div>
+
+        <div class="config-center-layout">
+          <div class="panel form-panel config-tab-panel active" data-config-panel="trucks">
+            <div class="config-panel-head">
+              <div>
+                <h2>أنواع الشاحنات</h2>
+                <p>أضف نوع شاحنة واحد فقط من هنا، والقائمة تظهر مرتبة بالأسفل.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newTruckTypeInput" placeholder="مثال: براد، ستارة، قلاب" />
+              <button class="success-btn" onclick="addTruckTypeConfig()">إضافة</button>
+            </div>
+            <div id="truckTypesConfigList" class="cards-list config-list-clean"></div>
+          </div>
+
+          <div class="panel form-panel config-tab-panel" data-config-panel="loads">
+            <div class="config-panel-head">
+              <div>
+                <h2>أنواع الحمولة</h2>
+                <p>هذه القائمة تُستخدم لاحقاً لتصنيف البضائع والطلبات.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newLoadTypeInput" placeholder="مثال: مواد غذائية، أثاث، أجهزة" />
+              <button class="success-btn" onclick="addLoadTypeConfig()">إضافة</button>
+            </div>
+            <div id="loadTypesConfigList" class="cards-list config-list-clean"></div>
+          </div>
+
+          <div class="panel form-panel config-tab-panel" data-config-panel="governorates">
+            <div class="config-panel-head">
+              <div>
+                <h2>المحافظات</h2>
+                <p>أضف المحافظة أولاً، وبعدها انتقل إلى تبويب المدن لإضافة المدن التابعة لها.</p>
+              </div>
+            </div>
+            <div class="config-add-row">
+              <input id="newGovernorateInput" placeholder="مثال: حلب، إسطنبول، غازي عنتاب" />
+              <button class="success-btn" onclick="addGovernorateConfig()">إضافة</button>
+            </div>
+            <div id="governoratesConfigList" class="cards-list config-list-clean"></div>
+          </div>
+
+          <div class="panel form-panel config-tab-panel" data-config-panel="cities">
+            <div class="config-panel-head">
+              <div>
+                <h2>المدن / المناطق</h2>
+                <p>اختر المحافظة ثم أضف المدينة. المدن تظهر مجمّعة حسب المحافظة.</p>
+              </div>
+            </div>
+            <div class="config-add-row city-add-row">
+              <select id="cityGovernorateSelect"></select>
+              <input id="newCityInput" placeholder="مثال: إسنيورت، الباب، المزة" />
+              <button class="success-btn" onclick="addCityConfig()">إضافة</button>
+            </div>
+            <div id="citiesConfigList" class="cards-list config-list-clean"></div>
+          </div>
+
+          <div class="panel form-panel config-tab-panel coordinates-own-panel" data-config-panel="coordinates">
+            <div class="coordinates-module-head">
+              <div class="coordinates-module-icon">📍</div>
+              <div>
+                <h2>إحداثيات المدن</h2>
+                <p>هذا القسم مستقل. اختَر محافظة ومدينة ثم أضف lat/lng فقط للمدينة التي تحتاج تحديد موقعها.</p>
+              </div>
+            </div>
+
+            <div class="config-add-row city-add-row">
+              <select id="coordinatesGovernorateSelect"></select>
+              <select id="coordinatesCitySelect"></select>
+            </div>
+
+            <div id="selectedCoordinatesStatus" class="coordinates-status">
+              اختر مدينة لعرض حالة الإحداثيات.
+            </div>
+
+            <div class="two-inputs compact-inputs">
+              <div>
+                <label>خط العرض lat</label>
+                <input id="coordinatesLatInput" type="text" inputmode="decimal" placeholder="مثال: 36.2021" />
+              </div>
+              <div>
+                <label>خط الطول lng</label>
+                <input id="coordinatesLngInput" type="text" inputmode="decimal" placeholder="مثال: 37.1343" />
+              </div>
+            </div>
+
+            <div class="coordinates-actions-clean">
+              <button type="button" id="saveCoordinatesBtn" class="primary-btn coord-clean-btn">
+                💾 حفظ / تعديل الإحداثيات
+              </button>
+
+              <button type="button" id="deleteCoordinatesBtn" class="danger-btn coord-clean-btn">
+                🗑️ حذف الإحداثيات
+              </button>
+            </div>
+
+            <p class="hint-text">زر تحديد موقعي داخل تطبيق السائق يستخدم فقط المدن التي لديها lat/lng.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="settingsSection" class="section hidden settings-pro-section">
+        <div class="settings-pro-layout">
+          <div class="panel settings-pro-card">
+            <div class="settings-pro-head">
+              <div>
+                <h2>إعدادات التطبيق</h2>
+                <p>تحكم بالتسجيل، الصيانة، المدة المجانية، ورقم تواصل الإدارة من مكان واحد.</p>
+              </div>
+            </div>
+
+            <div class="settings-pro-toggles">
+              <label class="settings-pro-toggle">
+                <input id="registrationEnabled" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>السماح بالتسجيل</strong>
+                  <small>عند الإيقاف، المستخدمين الجدد لا يستطيعون إنشاء حساب.</small>
+                </span>
+              </label>
+
+              <label class="settings-pro-toggle">
+                <input id="maintenanceMode" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>وضع الصيانة</strong>
+                  <small>عند التفعيل، التطبيق يتوقف مؤقتاً للمستخدمين.</small>
+                </span>
+              </label>
+
+              <label class="settings-pro-toggle">
+                <input id="freeTrialEnabled" type="checkbox" />
+                <span class="settings-pro-switch"></span>
+                <span class="settings-pro-toggle-text">
+                  <strong>تفعيل المدة المجانية</strong>
+                  <small>إذا كانت مفعلة، الحساب الجديد يأخذ المدة المجانية بعد التوثيق.</small>
+                </span>
+              </label>
+            </div>
+
+            <div class="settings-pro-fields">
+              <label class="settings-pro-field">
+                <span>رقم الدعم / واتساب الإدارة</span>
+                <input id="supportPhone" placeholder="مثال: 905xxxxxxxxx" inputmode="tel" />
+              </label>
+
+              <label class="settings-pro-field">
+                <span>المدة المجانية بالأشهر</span>
+                <input id="freeMonths" type="number" min="0" placeholder="مثال: 6" />
+              </label>
+
+              <label class="settings-pro-field settings-pro-field-full">
+                <span>ملاحظة داخلية</span>
+                <textarea id="adminInternalNote" placeholder="ملاحظة للإدارة فقط"></textarea>
+              </label>
+            </div>
+
+            <button class="primary-btn settings-pro-save" onclick="saveAppSettings()">حفظ الإعدادات</button>
+          </div>
+
+          <div class="panel settings-pro-card settings-pro-counter-card">
+            <div class="settings-pro-head">
+              <div>
+                <h2>عدادات الترقيم</h2>
+                <p>غيّرها بحذر فقط عند الحاجة، لأنها تتحكم بأرقام الطلبات والحمولات.</p>
+              </div>
+            </div>
+
+            <div class="settings-pro-fields">
+              <label class="settings-pro-field">
+                <span>آخر رقم طلب ORD</span>
+                <input id="ordersCounterInput" type="number" min="0" />
+              </label>
+
+              <label class="settings-pro-field">
+                <span>آخر رقم حمولة LOAD</span>
+                <input id="loadsCounterInput" type="number" min="0" />
+              </label>
+            </div>
+
+            <button class="warning-btn settings-pro-save" onclick="saveCounters()">حفظ العدادات</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="admin.js?v=admin_sync_20260716_1"></script>
+  <script type="module" src="modules/config/config.js?v=admin_sync_20260716_1"></script>
+  <script type="module" src="modules/config/coordinates.js?v=admin_sync_20260716_1"></script>
+</body>
+</html>
